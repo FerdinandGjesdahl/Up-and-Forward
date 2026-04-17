@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Up and Forward — Sign in</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0c10;
+      --surface: #111318;
+      --border: #1e2230;
+      --accent: #2563eb;
+      --accent-light: #3b82f6;
+      --text: #e8eaf0;
+      --muted: #6b7280;
+      --green: #10b981;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* NAV */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 40px;
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.5px; text-decoration: none; color: var(--text); }
+    .nav-logo span { color: var(--accent-light); }
+
+    /* MAIN */
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    main::before {
+      content: '';
+      position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+      width: 700px; height: 700px;
+      background: radial-gradient(circle, rgba(37,99,235,0.12) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px 44px;
+      width: 100%;
+      max-width: 420px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .auth-logo {
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 28px;
+      letter-spacing: -0.5px;
+    }
+    .auth-logo span { color: var(--accent-light); }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .auth-sub {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.875rem;
+      margin-bottom: 32px;
+    }
+
+    /* SOCIAL BUTTONS */
+    .social-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      padding: 13px 20px;
+      border-radius: 10px;
+      font-size: 0.925rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      border: none;
+      margin-bottom: 12px;
+    }
+    .btn-google {
+      background: #fff;
+      color: #1f2937;
+      border: 1px solid #e5e7eb;
+    }
+    .btn-google:hover {
+      background: #f9fafb;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+    .btn-facebook {
+      background: #1877f2;
+      color: #fff;
+    }
+    .btn-facebook:hover {
+      background: #166fe5;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(24,119,242,0.35);
+    }
+
+    .social-btn svg { flex-shrink: 0; }
+
+    /* DIVIDER */
+    .divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 20px 0;
+      color: var(--muted); font-size: 0.8rem;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1;
+      height: 1px; background: var(--border);
+    }
+
+    /* EMAIL FORM */
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+    input[type="email"], input[type="password"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="email"]:focus, input[type="password"]:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--muted); }
+
+    .btn-submit {
+      width: 100%;
+      padding: 13px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.925rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 4px;
+    }
+    .btn-submit:hover {
+      background: var(--accent-light);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(37,99,235,0.4);
+    }
+
+    .forgot { text-align: right; margin-top: -8px; margin-bottom: 16px; }
+    .forgot a { font-size: 0.78rem; color: var(--muted); text-decoration: none; }
+    .forgot a:hover { color: var(--accent-light); }
+
+    .auth-switch {
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 24px;
+    }
+    .auth-switch a { color: var(--accent-light); text-decoration: none; font-weight: 600; }
+    .auth-switch a:hover { text-decoration: underline; }
+
+    .terms {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+    .terms a { color: var(--muted); text-decoration: underline; }
+
+    /* TOGGLE tabs */
+    .auth-tabs {
+      display: flex;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 28px;
+    }
+    .auth-tab {
+      flex: 1; text-align: center;
+      padding: 9px;
+      border-radius: 7px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.2s;
+      border: none;
+      background: transparent;
+    }
+    .auth-tab.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: var(--muted);
+      font-size: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">Up and <span>Forward</span></a>
+</nav>
+
+<main>
+  <div class="auth-card">
+    <div class="auth-logo">Up and <span>Forward</span></div>
+
+    <!-- TABS -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="setTab('signin', this)">Sign in</button>
+      <button class="auth-tab" onclick="setTab('signup', this)">Create account</button>
+    </div>
+
+    <h1 id="auth-title">Welcome back</h1>
+    <p class="auth-sub" id="auth-sub">Sign in to your Up and Forward account</p>
+
+    <!-- GOOGLE -->
+    <button id="btn-google" class="social-btn btn-google" onclick="signInWithGoogle()">
+      <svg width="18" height="18" viewBox="0 0 18 18">
+        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+        <path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/>
+        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/>
+      </svg>
+      Continue with Google
+    </button>
+
+    <!-- FACEBOOK -->
+    <button class="social-btn btn-facebook" onclick="handleSocial('Facebook')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+        <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.267h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
+      </svg>
+      Continue with Facebook
+    </button>
+
+    <div class="divider">or continue with email</div>
+
+    <!-- EMAIL FORM -->
+    <form onsubmit="handleEmail(event)">
+      <div class="form-group">
+        <label>Email address</label>
+        <input type="email" placeholder="you@example.com" required />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" placeholder="••••••••" required />
+      </div>
+      <div class="forgot" id="forgot-link">
+        <a href="#">Forgot password?</a>
+      </div>
+      <button type="submit" class="btn-submit" id="submit-btn">Sign in</button>
+    </form>
+
+    <p class="auth-switch" id="auth-switch">
+      Don't have an account? <a href="#" onclick="setTab('signup', document.querySelectorAll('.auth-tab')[1]); return false;">Create one free</a>
+    </p>
+
+    <p class="terms">
+      By continuing you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+    </p>
+  </div>
+</main>
+
+<footer>© 2026 Up and Forward</footer>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged }
+    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+  // ── PASTE YOUR FIREBASE CONFIG HERE ──────────────────────────────────────
+  const firebaseConfig = {
+    apiKey:            "AIzaSyBdezh15hEKHXSih_O354WNvaxdMxXA0T8",
+    authDomain:        "up-and-forward.firebaseapp.com",
+    projectId:         "up-and-forward",
+    storageBucket:     "up-and-forward.firebasestorage.app",
+    messagingSenderId: "169703206106",
+    appId:             "1:169703206106:web:f9302b6efbbe9cbfac09e3"
+  };
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const app      = initializeApp(firebaseConfig);
+  const auth     = getAuth(app);
+  const provider = new GoogleAuthProvider();
+
+  // Redirect if already logged in
+  onAuthStateChanged(auth, user => {
+    if (user) window.location.href = 'dashboard.html';
+  });
+
+  // Google sign-in
+  window.signInWithGoogle = async function() {
+    const btn = document.getElementById('btn-google');
+    btn.disabled = true;
+    btn.innerHTML = '<span style="opacity:0.6">Connecting...</span>';
+    try {
+      await signInWithPopup(auth, provider);
+      // onAuthStateChanged will redirect
+    } catch (err) {
+      btn.disabled = false;
+      btn.innerHTML = googleBtnHTML;
+      if (err.code !== 'auth/popup-closed-by-user') {
+        alert('Sign-in failed: ' + err.message);
+      }
+    }
+  };
+
+  const googleBtnHTML = document.getElementById('btn-google')?.innerHTML;
+</script>
+
+<script>
+  function setTab(mode, el) {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+
+    const isSignup = mode === 'signup';
+    document.getElementById('auth-title').textContent = isSignup ? 'Create your account' : 'Welcome back';
+    document.getElementById('auth-sub').textContent = isSignup
+      ? 'Start your 14-day free trial — no credit card required'
+      : 'Sign in to your Up and Forward account';
+    document.getElementById('submit-btn').textContent = isSignup ? 'Create account' : 'Sign in';
+    document.getElementById('forgot-link').style.display = isSignup ? 'none' : 'block';
+    document.getElementById('auth-switch').innerHTML = isSignup
+      ? 'Already have an account? <a href="#" onclick="setTab(\'signin\', document.querySelectorAll(\'.auth-tab\')[0]); return false;">Sign in</a>'
+      : 'Don\'t have an account? <a href="#" onclick="setTab(\'signup\', document.querySelectorAll(\'.auth-tab\')[1]); return false;">Create one free</a>';
+  }
+
+  function handleEmail(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submit-btn');
+    btn.textContent = 'Signing in...';
+    btn.disabled = true;
+    setTimeout(() => { window.location.href = 'dashboard.html'; }, 1000);
+  }
+</script>
+
+</body>
+</html>

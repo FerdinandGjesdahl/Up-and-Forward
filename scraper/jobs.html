@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Up and Forward — Live Jobs</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0c10; color: #e8eaf0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px 24px; }
+    h1 { font-size: 1.4rem; font-weight: 800; margin-bottom: 8px; }
+    h1 span { color: #3b82f6; }
+    .sub { color: #6b7280; font-size: 0.85rem; margin-bottom: 32px; }
+    .job {
+      background: #111318; border: 1px solid #1e2230; border-radius: 12px;
+      padding: 20px 24px; margin-bottom: 14px;
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+      transition: border-color 0.2s;
+    }
+    .job:hover { border-color: #2563eb; }
+    .bank { font-size: 0.75rem; color: #6b7280; margin-bottom: 4px; }
+    .title { font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; }
+    .location { font-size: 0.78rem; color: #6b7280; }
+    .apply {
+      flex-shrink: 0;
+      background: #2563eb; color: #fff;
+      padding: 9px 18px; border-radius: 8px;
+      font-size: 0.82rem; font-weight: 600;
+      text-decoration: none; white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .apply:hover { background: #3b82f6; }
+  </style>
+</head>
+<body>
+  <h1>Up and <span>Forward</span> — Live Listings</h1>
+  <p class="sub" id="count">Loading...</p>
+  <div id="jobs"></div>
+
+  <script>
+    fetch('new_jobs.json')
+      .then(r => r.json())
+      .then(jobs => {
+        document.getElementById('count').textContent = `${jobs.length} listings found`;
+        document.getElementById('jobs').innerHTML = jobs.map(j => `
+          <div class="job">
+            <div>
+              <div class="bank">${j.bank}</div>
+              <div class="title">${j.title}</div>
+              <div class="location">${j.location}</div>
+            </div>
+            <a class="apply" href="${j.url}" target="_blank">View & Apply →</a>
+          </div>
+        `).join('');
+      });
+  </script>
+</body>
+</html>
