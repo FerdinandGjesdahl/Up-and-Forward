@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Up and Forward — Companies & Internship Links</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0c10;
+      --surface: #111318;
+      --border: #1e2230;
+      --accent: #2563eb;
+      --accent-light: #3b82f6;
+      --gold: #f59e0b;
+      --text: #e8eaf0;
+      --muted: #6b7280;
+      --green: #10b981;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.6;
+    }
+
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 40px;
+      background: rgba(10,12,16,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.5px; text-decoration: none; color: var(--text); }
+    .nav-logo span { color: var(--accent-light); }
+    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .btn { display: inline-block; padding: 10px 22px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; border: none; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-light); transform: translateY(-1px); }
+
+    .page-header {
+      padding: 64px 24px 48px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-label {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 2px;
+      color: var(--accent-light); text-transform: uppercase; margin-bottom: 12px;
+    }
+    .page-header h1 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800; letter-spacing: -1px; margin-bottom: 12px;
+    }
+    .page-header p { color: var(--muted); font-size: 1rem; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 48px 24px; }
+
+    .category { margin-bottom: 56px; }
+    .category-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .category-title { font-size: 1.15rem; font-weight: 700; }
+    .category-count {
+      font-size: 0.75rem; font-weight: 600; padding: 3px 10px;
+      background: rgba(37,99,235,0.12); color: var(--accent-light);
+      border-radius: 999px; border: 1px solid rgba(37,99,235,0.25);
+    }
+
+    .companies-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 10px;
+    }
+
+    .company-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      text-decoration: none; color: var(--text);
+      transition: border-color 0.2s, transform 0.15s;
+    }
+    .company-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+    .company-left { display: flex; align-items: center; gap: 12px; }
+    .company-icon {
+      width: 34px; height: 34px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 800; color: #fff;
+      flex-shrink: 0; letter-spacing: 0;
+    }
+    .company-name { font-size: 0.875rem; font-weight: 600; }
+    .company-arrow { color: var(--muted); font-size: 0.8rem; transition: color 0.2s; flex-shrink: 0; }
+    .company-card:hover .company-arrow { color: var(--accent-light); }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 40px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+      color: var(--muted); font-size: 0.8rem;
+    }
+
+    @media (max-width: 600px) {
+      nav { padding: 14px 20px; }
+      .nav-links { display: none; }
+      .companies-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="../index.html">Up and <span>Forward</span></a>
+  <div class="nav-links">
+    <a href="../index.html#how">How it works</a>
+    <a href="../index.html#pricing">Pricing</a>
+    <a href="jobs.html">Browse jobs</a>
+    <a href="companies.html" style="color:var(--text)">Companies</a>
+    <a href="../login.html" class="btn btn-primary">Get started</a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <div class="section-label">Coverage</div>
+  <h1>Internship & Career Pages</h1>
+  <p>Direct links to student / early-career portals for 70+ top banks and consulting firms.</p>
+</div>
+
+<div class="container">
+
+  <!-- BULGE BRACKET USA -->
+  <div class="category">
+    <div class="category-header">
+      <div class="category-title">Bulge Bracket — USA</div>
+      <div class="category-count">6 firms</div>
+    </div>
+    <div class="companies-grid">
+      <a class="company-card" href="https://careers.jpmorgan.com/global/en/students/programs" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#0f5ef7">JPM</div><div class="company-name">JPMorgan Chase</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.goldmansachs.com/careers/students/programs-and-internships" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1a56db">GS</div><div class="company-name">Goldman Sachs</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.morganstanley.com/people-opportunities/students-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#c8102e">MS</div><div class="company-name">Morgan Stanley</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://campus.bankofamerica.com" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#e31837">BAML</div><div class="company-name">Bank of America</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://jobs.citi.com/early-careers" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#00a1de">CITI</div><div class="company-name">Citigroup</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.wellsfargojobs.com/en/career-areas/university-programs" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#d4a017">WF</div><div class="company-name">Wells Fargo</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- BULGE BRACKET EUROPE -->
+  <div class="category">
+    <div class="category-header">
+      <div class="category-title">Bulge Bracket — Europe</div>
+      <div class="category-count">5 firms</div>
+    </div>
+    <div class="companies-grid">
+      <a class="company-card" href="https://search.jobs.barclays/early-careers" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#0066b2">BAR</div><div class="company-name">Barclays</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.ubs.com/global/en/careers/students.html" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#012169">UBS</div><div class="company-name">UBS</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.db.com/careers/en/students-and-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#e60028">DB</div><div class="company-name">Deutsche Bank</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.hsbc.com/careers/students-and-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#db0011">HSBC</div><div class="company-name">HSBC</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://group.bnpparibas/en/careers/students-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#00965e">BNP</div><div class="company-name">BNP Paribas</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ANDRE STORE UNIVERSALBANKER -->
+  <div class="category">
+    <div class="category-header">
+      <div class="category-title">Andre store universalbanker</div>
+      <div class="category-count">18 firms</div>
+    </div>
+    <div class="companies-grid">
+      <a class="company-card" href="https://jobs.rbc.com/ca/en/capitalmarkets-earlytalent" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#005daa">RBC</div><div class="company-name">RBC Capital Markets</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://jobs.bmo.com/ca/en/university" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#0079c1">BMO</div><div class="company-name">BMO Capital Markets</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.tdsecurities.com/ca/en/careers-students-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#008a00">TDS</div><div class="company-name">TD Securities</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://jobs.scotiabank.com/students-and-recent-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#ec111a">SCO</div><div class="company-name">Scotiabank</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://careers.societegenerale.com/en/early-careers" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#e60028">SG</div><div class="company-name">Société Générale</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.ca-cib.com/careers/students-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#00843d">CACIB</div><div class="company-name">Crédit Agricole CIB</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.santander.com/en/careers/internships-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#ec0000">SAN</div><div class="company-name">Santander CIB</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://careers.bbva.com/global/en/students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#004481">BBVA</div><div class="company-name">BBVA CIB</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.ing.jobs/global/students-and-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#ff6200">ING</div><div class="company-name">ING Wholesale Banking</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://careers.natixis.com/students-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#6d2077">NAT</div><div class="company-name">Natixis / Groupe BPCE</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://jobs.intesasanpaolo.com" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#003087">ISP</div><div class="company-name">Intesa Sanpaolo IMI CIB</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://careers.unicreditgroup.eu/graduates-students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#e2001a">UCG</div><div class="company-name">UniCredit</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.sc.com/en/careers/students-and-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#0e7b3f">SCB</div><div class="company-name">Standard Chartered</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://jobs.natwestgroup.com/early-careers" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#42145f">NWM</div><div class="company-name">NatWest Markets</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.lloydsbankinggroup.com/careers/early-careers.html" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#024731">LBG</div><div class="company-name">Lloyds Banking Group</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.nomura.com/careers/graduates-and-students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#6f1a36">NOM</div><div class="company-name">Nomura</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.mizuhogroup.com/careers/americas/students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#003087">MIZ</div><div class="company-name">Mizuho</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.smbcgroup.com/americas/careers" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#003087">SMBC</div><div class="company-name">SMBC</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ELITE BOUTIQUES USA -->
+  <div class="category">
+    <div class="category-header">
+      <div class="category-title">Elite Boutiques — USA</div>
+      <div class="category-count">10 firms</div>
+    </div>
+    <div class="companies-grid">
+      <a class="company-card" href="https://www.lazard.com/careers/students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#2d4a8a">LAZ</div><div class="company-name">Lazard</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.evercore.com/careers/campus-recruiting" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1a1a2e">EVR</div><div class="company-name">Evercore</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.centerviewpartners.com/careers.aspx" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#2c3e50">CVP</div><div class="company-name">Centerview Partners</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.moelis.com/careers/early-career" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#0a4d3c">MOE</div><div class="company-name">Moelis & Company</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://pjtpartners.com/careers/campus-recruiting" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1b3a6b">PJT</div><div class="company-name">PJT Partners</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.pwpartners.com/careers" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1c3d5a">PWP</div><div class="company-name">Perella Weinberg Partners</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.guggenheimpartners.com/careers/early-career" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1a3a5c">GUG</div><div class="company-name">Guggenheim Securities</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://careers.hl.com/campus" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#c8a84b">HL</div><div class="company-name">Houlihan Lokey</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://qatalyst.com/careers" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#2c3e50">QAT</div><div class="company-name">Qatalyst Partners</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.rothschildandco.com/en/careers/students-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#8b1a1a">ROT</div><div class="company-name">Rothschild & Co</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- MIDDLE MARKET USA -->
+  <div class="category">
+    <div class="category-header">
+      <div class="category-title">Middle Market & andre viktige aktører — USA</div>
+      <div class="category-count">7 firms</div>
+    </div>
+    <div class="companies-grid">
+      <a class="company-card" href="https://www.jefferies.com/careers/campus-recruiting" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1e3f6e">JEF</div><div class="company-name">Jefferies</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.raymondjames.com/careers/students-and-recent-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#003087">RJ</div><div class="company-name">Raymond James</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.stifel.com/careers/campus-recruiting" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1b4f72">STI</div><div class="company-name">Stifel Financial</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.williamblair.com/Careers/Campus-Recruiting" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#2c5f8a">WB</div><div class="company-name">William Blair</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.pipersandler.com/campus" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1a3a4a">PS</div><div class="company-name">Piper Sandler</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.harriswilliams.com/careers/campus" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#8b1a1a">HW</div><div class="company-name">Harris Williams</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.lincolninternational.com/careers/early-career" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1b3a6b">LIN</div><div class="company-name">Lincoln International</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- NORDISKE / EUROPEISKE BOUTIQUES -->
+  <div class="category">
+    <div class="category-header">
+      <div class="category-title">Nordiske & europeiske boutiques</div>
+      <div class="category-count">3 firms</div>
+    </div>
+    <div class="companies-grid">
+      <a class="company-card" href="https://www.carnegie.se/en/career" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#003087">CAR</div><div class="company-name">Carnegie Investment Bank</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.abgsc.com/career" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1a3a5c">ABG</div><div class="company-name">ABG Sundal Collier</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://paretosec.com/our-firm/career/internship" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#2c3e50">PAR</div><div class="company-name">Pareto Securities</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- MBB -->
+  <div class="category">
+    <div class="category-header">
+      <div class="category-title">MBB — Strategy Consulting</div>
+      <div class="category-count">3 firms</div>
+    </div>
+    <div class="companies-grid">
+      <a class="company-card" href="https://www.mckinsey.com/careers/students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#003087">MCK</div><div class="company-name">McKinsey & Company</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://careers.bcg.com/students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#00843d">BCG</div><div class="company-name">Boston Consulting Group</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.bain.com/careers/students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#cc0000">BAIN</div><div class="company-name">Bain & Company</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- BIG FOUR -->
+  <div class="category">
+    <div class="category-header">
+      <div class="category-title">Big Four</div>
+      <div class="category-count">4 firms</div>
+    </div>
+    <div class="companies-grid">
+      <a class="company-card" href="https://www2.deloitte.com/global/en/pages/careers/topics/students.html" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#86bc25">DEL</div><div class="company-name">Deloitte</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.pwc.com/gx/en/careers/students.html" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#d04a02">PWC</div><div class="company-name">PwC</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.ey.com/en_gl/careers/students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#ffe600; color:#000">EY</div><div class="company-name">EY</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://kpmg.com/xx/en/careers/students.html" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#00338d">KPMG</div><div class="company-name">KPMG</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- TECH & IMPLEMENTATION CONSULTING -->
+  <div class="category">
+    <div class="category-header">
+      <div class="category-title">Tech & implementeringsorientert consulting</div>
+      <div class="category-count">7 firms</div>
+    </div>
+    <div class="companies-grid">
+      <a class="company-card" href="https://www.accenture.com/us-en/careers/local/students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#a100ff">ACC</div><div class="company-name">Accenture</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.capgemini.com/careers/students-and-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#0070ad">CAP</div><div class="company-name">Capgemini</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.ibm.com/careers/us-en/early-career" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1f70c1">IBM</div><div class="company-name">IBM Consulting</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.tcs.com/careers/students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#003087">TCS</div><div class="company-name">Tata Consultancy Services</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.infosys.com/careers/early-professionals.html" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#007cc3">INFO</div><div class="company-name">Infosys</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://careers.cognizant.com/global/en/university" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1a6691">COG</div><div class="company-name">Cognizant</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://careers.wipro.com/careers-home/students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#341460">WIP</div><div class="company-name">Wipro</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- TIER 2 STRATEGY CONSULTING -->
+  <div class="category">
+    <div class="category-header">
+      <div class="category-title">Tier 2 — Strategy & Management Consulting</div>
+      <div class="category-count">6 firms</div>
+    </div>
+    <div class="companies-grid">
+      <a class="company-card" href="https://www.oliverwyman.com/careers/students.html" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#c8102e">OW</div><div class="company-name">Oliver Wyman</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.rolandberger.com/en/Careers/Students-Graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#003087">RB</div><div class="company-name">Roland Berger</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.kearney.com/careers/students-and-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#00843d">KEA</div><div class="company-name">Kearney</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.lek.com/careers/students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1a3a5c">LEK</div><div class="company-name">L.E.K. Consulting</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://careers.boozallen.com/us/en/students" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#003087">BAH</div><div class="company-name">Booz Allen Hamilton</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+      <a class="company-card" href="https://www.adlittle.com/en/careers/students-graduates" target="_blank">
+        <div class="company-left"><div class="company-icon" style="background:#1a1a2e">ADL</div><div class="company-name">Arthur D. Little</div></div>
+        <span class="company-arrow">→</span>
+      </a>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <div>© 2026 Up and Forward — All rights reserved</div>
+  <div style="display:flex;gap:20px">
+    <a href="#" style="color:var(--muted);text-decoration:none">Privacy</a>
+    <a href="#" style="color:var(--muted);text-decoration:none">Terms</a>
+    <a href="#" style="color:var(--muted);text-decoration:none">Contact</a>
+  </div>
+</footer>
+
+</body>
+</html>
