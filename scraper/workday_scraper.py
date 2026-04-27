@@ -66,7 +66,7 @@ def is_relevant(title: str) -> bool:
 
 
 def fetch_workday_jobs(tenant: str, instance: int, board: str, bank_name: str) -> list:
-    url = (
+    base_url = (
         f"https://{tenant}.wd{instance}.myworkdayjobs.com"
         f"/wday/cxs/{tenant}/{board}/jobs"
     )
@@ -74,41 +74,52 @@ def fetch_workday_jobs(tenant: str, instance: int, board: str, bank_name: str) -
         "Content-Type": "application/json",
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
     }
-    payload = {
-        "limit": 20,
-        "offset": 0,
-        "searchText": "",
-        "appliedFacets": {}
-    }
 
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-        jobs = data.get("jobPostings", [])
+    results = []
+    offset = 0
+    limit = 20
 
-        results = []
-        for job in jobs:
-            title    = job.get("title", "")
-            job_id   = job.get("externalPath", job.get("bulletFields", [title])[0])
-            location = ", ".join(job.get("locationsText", "").split(",")[:2])
-            url_path = job.get("externalPath", "")
-            apply_url = f"https://{tenant}.wd{instance}.myworkdayjobs.com/en-US/{board}{url_path}"
+    while True:
+        payload = {
+            "limit": limit,
+            "offset": offset,
+            "searchText": "",
+            "appliedFacets": {}
+        }
 
-            if is_relevant(title):
-                results.append({
-                    "id":       f"{tenant}_{job_id}",
-                    "bank":     bank_name,
-                    "title":    title,
-                    "location": location,
-                    "url":      apply_url,
-                    "found_at": datetime.now().isoformat(),
-                })
-        return results
+        try:
+            resp = requests.post(base_url, headers=headers, json=payload, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            jobs = data.get("jobPostings", [])
+            total = data.get("total", 0)
 
-    except requests.exceptions.RequestException as e:
-        print(f"  ✗ {bank_name}: {e}")
-        return []
+            for job in jobs:
+                title    = job.get("title", "")
+                job_id   = job.get("externalPath", job.get("bulletFields", [title])[0])
+                location = ", ".join(job.get("locationsText", "").split(",")[:2])
+                url_path = job.get("externalPath", "")
+                apply_url = f"https://{tenant}.wd{instance}.myworkdayjobs.com/en-US/{board}{url_path}"
+
+                if is_relevant(title):
+                    results.append({
+                        "id":       f"{tenant}_{job_id}",
+                        "bank":     bank_name,
+                        "title":    title,
+                        "location": location,
+                        "url":      apply_url,
+                        "found_at": datetime.now().isoformat(),
+                    })
+
+            offset += len(jobs)
+            if not jobs or offset >= total:
+                break
+
+        except requests.exceptions.RequestException as e:
+            print(f"  ✗ {bank_name}: {e}")
+            break
+
+    return results
 
 
 def run():
@@ -118,33 +129,35 @@ def run():
     print(f"{'='*55}\n")
 
     seen     = load_seen_jobs()
-    new_jobs = []
+    all_jobs = []
+    new_count = 0
 
     for tenant, instance, board, bank_name in BANKS:
         print(f"Checking {bank_name}...")
         jobs = fetch_workday_jobs(tenant, instance, board, bank_name)
 
         for job in jobs:
-            if job["id"] not in seen:
-                new_jobs.append(job)
+            is_new = job["id"] not in seen
+            if is_new:
                 seen.add(job["id"])
+                new_count += 1
                 print(f"  ✓ NEW: {job['title']} — {job['location']}")
+            job["is_new"] = is_new
+            all_jobs.append(job)
 
         if not jobs:
             print(f"  → No relevant listings found")
 
     save_seen_jobs(seen)
 
-    if new_jobs:
-        with open(OUTPUT_FILE, "w") as f:
-            json.dump(new_jobs, f, indent=2)
-        print(f"\n{'='*55}")
-        print(f"  {len(new_jobs)} new listing(s) saved to {OUTPUT_FILE}")
-        print(f"{'='*55}\n")
-    else:
-        print(f"\n  No new listings since last run.\n")
+    with open(OUTPUT_FILE, "w") as f:
+        json.dump(all_jobs, f, indent=2)
 
-    return new_jobs
+    print(f"\n{'='*55}")
+    print(f"  {len(all_jobs)} total listing(s), {new_count} new → saved to {OUTPUT_FILE}")
+    print(f"{'='*55}\n")
+
+    return all_jobs
 
 
 if __name__ == "__main__":

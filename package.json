@@ -1,0 +1,15 @@
+{
+  "name": "up-and-forward-job-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node local_server.mjs",
+    "dev": "node local_server.mjs",
+    "install:browsers": "playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.44.0",
+    "web-push": "^3.6.7"
+  }
+}

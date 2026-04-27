@@ -366,7 +366,7 @@
     <a href="#pricing">Pricing</a>
     <a href="scraper/jobs.html">Browse jobs</a>
     <a href="companies.html">Companies</a>
-    <a href="login.html" class="btn btn-primary">Get started</a>
+    <a href="dashboard.html" class="btn btn-primary">Get started</a>
   </div>
 </nav>
 
@@ -379,7 +379,7 @@
     and graduate roles open at the world's most sought-after finance firms.
   </p>
   <div class="hero-actions">
-    <a href="login.html" class="btn btn-primary btn-large">Start free trial</a>
+    <a href="dashboard.html" class="btn btn-primary btn-large">Start free trial</a>
     <a href="scraper/jobs.html" class="btn btn-outline btn-large">Browse live jobs</a>
   </div>
   <div class="hero-stats">
@@ -497,7 +497,7 @@
     <h2>40+ firms monitored</h2>
     <p class="section-sub">From bulge bracket banks to the world's best boutiques.</p>
     <div class="content-gate" id="companies-gate">
-      <div class="companies-grid gate-blur" id="companies-grid">
+      <div class="companies-grid" id="companies-grid">
         <div class="company-card"><div class="company-icon" style="background:#1a56db">GS</div>Goldman Sachs</div>
         <div class="company-card"><div class="company-icon" style="background:#0f5ef7">JPM</div>JP Morgan</div>
         <div class="company-card"><div class="company-icon" style="background:#c8102e">MS</div>Morgan Stanley</div>
@@ -516,11 +516,8 @@
         <div class="company-card"><div class="company-icon" style="background:#2c5f8a">WB</div>William Blair</div>
         <div class="more-badge">+ 24 more firms</div>
       </div>
-      <div class="gate-overlay" id="companies-overlay">
-        <div class="gate-lock">🔒</div>
-        <div class="gate-title">Log in to see all firms</div>
-        <div class="gate-sub">Create a free account to browse all 40+ companies we monitor.</div>
-        <a href="login.html?redirect=index.html%23companies" class="gate-btn">Sign in / Create account</a>
+      <div style="margin-top:18px; text-align:center;">
+        <a href="companies.html" class="btn btn-outline">See full company list</a>
       </div>
     </div>
   </div>
@@ -543,7 +540,7 @@
           <li><span class="check">✓</span> Filter by type and location</li>
           <li><span class="check">✓</span> Cancel anytime</li>
         </ul>
-        <a href="login.html" class="btn btn-outline" style="width:100%;text-align:center;display:block;padding:13px">Get started</a>
+        <a href="dashboard.html" class="btn btn-outline" style="width:100%;text-align:center;display:block;padding:13px">Get started</a>
       </div>
       <div class="pricing-card featured">
         <div style="color:var(--accent-light);font-size:0.85rem;font-weight:600;margin-bottom:12px;">ANNUAL</div>
@@ -556,7 +553,7 @@
           <li><span class="check">✓</span> Early access periods</li>
           <li><span class="check">✓</span> Dedicated support</li>
         </ul>
-        <a href="login.html" class="btn btn-primary" style="width:100%;text-align:center;display:block;padding:13px">Choose annual</a>
+        <a href="dashboard.html" class="btn btn-primary" style="width:100%;text-align:center;display:block;padding:13px">Choose annual</a>
       </div>
     </div>
   </div>
@@ -589,30 +586,6 @@
     <a href="#" style="color:var(--muted);text-decoration:none">Contact</a>
   </div>
 </footer>
-
-<script type="module">
-  import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-
-  const app  = initializeApp({
-    apiKey:            "AIzaSyCn0BeTzozrBwZVF8Yi8MaR2R7ek1RTHCU",
-    authDomain:        "up-and-forward-61021.firebaseapp.com",
-    projectId:         "up-and-forward-61021",
-    storageBucket:     "up-and-forward-61021.firebasestorage.app",
-    messagingSenderId: "142989822882",
-    appId:             "1:142989822882:web:cd079516bf2ca87499c0fb"
-  });
-  const auth = getAuth(app);
-
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      const overlay = document.getElementById('companies-overlay');
-      const grid    = document.getElementById('companies-grid');
-      if (overlay) overlay.remove();
-      if (grid)    grid.classList.remove('gate-blur');
-    }
-  });
-</script>
 
 <script>
   function handleSignup(e) {

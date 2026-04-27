@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="UpForward" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
   <title>Up and Forward — Dashboard</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -29,21 +34,6 @@
       min-height: 100vh;
     }
 
-    /* ── Auth overlay ── */
-    .auth-overlay {
-      position: fixed; inset: 0; background: var(--bg);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 9999;
-    }
-    .spinner {
-      width: 40px; height: 40px;
-      border: 3px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
     /* ── Nav ── */
     nav {
       position: sticky; top: 0; z-index: 100;
@@ -58,36 +48,14 @@
 
     .nav-right { display: flex; align-items: center; gap: 16px; }
 
-    .user-pill {
-      display: flex; align-items: center; gap: 10px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 40px;
-      padding: 5px 14px 5px 5px;
-    }
-    .user-avatar {
-      width: 30px; height: 30px; border-radius: 50%;
-      background: var(--accent);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; font-weight: 700; color: #fff;
-      flex-shrink: 0; overflow: hidden;
-    }
-    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .user-name { font-size: 0.85rem; font-weight: 600; }
-    .user-email { font-size: 0.72rem; color: var(--muted); }
-
-    .btn-signout {
-      background: transparent;
-      border: 1px solid var(--border);
+    .nav-link {
       color: var(--muted);
-      border-radius: 8px;
-      padding: 7px 14px;
-      font-size: 0.82rem;
+      text-decoration: none;
+      font-size: 0.85rem;
       font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
+      transition: color 0.2s;
     }
-    .btn-signout:hover { border-color: var(--red); color: var(--red); }
+    .nav-link:hover { color: var(--text); }
 
     /* ── Page layout ── */
     .page { max-width: 1080px; margin: 0 auto; padding: 32px 24px 60px; }
@@ -116,7 +84,7 @@
       border-radius: 14px;
       padding: 14px;
       display: grid;
-      grid-template-columns: 1fr auto auto auto;
+      grid-template-columns: 1fr auto auto auto auto auto;
       gap: 10px;
       margin-bottom: 14px;
     }
@@ -209,6 +177,15 @@
       border: 1px solid var(--border);
       color: var(--muted);
     }
+    .tag-new {
+      padding: 3px 9px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      background: rgba(16,185,129,0.15);
+      border: 1px solid var(--green);
+      color: var(--green);
+    }
 
     .apply-btn {
       flex-shrink: 0;
@@ -235,36 +212,26 @@
       nav { padding: 0 16px; }
       .stats { grid-template-columns: 1fr; }
       .controls { grid-template-columns: 1fr; }
-      .user-email { display: none; }
       .job { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
 <body>
 
-<div id="auth-overlay" class="auth-overlay">
-  <div class="spinner"></div>
-</div>
-
-<nav id="main-nav" style="display:none">
+<nav>
   <a href="dashboard.html" class="nav-logo">Up and <span>Forward</span></a>
   <div class="nav-right">
-    <div class="user-pill">
-      <div class="user-avatar" id="user-avatar">?</div>
-      <div>
-        <div class="user-name" id="user-name">—</div>
-        <div class="user-email" id="user-email">—</div>
-      </div>
-    </div>
-    <button class="btn-signout" onclick="handleSignOut()">Sign out</button>
+    <a class="nav-link" href="index.html">Home</a>
+    <a class="nav-link" href="companies.html">Companies</a>
+    <a class="nav-link" href="scraper/jobs.html">Live Jobs</a>
   </div>
 </nav>
 
-<div class="page" id="main-page" style="display:none">
+<div class="page">
 
   <div class="page-header">
     <h1>Job Dashboard</h1>
-    <p>Live finance internship & analyst listings — updated continuously</p>
+    <p>Paste a jobs URL and extract company, role, and posted date with ATS APIs, browser rendering, and OpenAI.</p>
   </div>
 
   <div class="stats">
@@ -287,7 +254,7 @@
 
   <!-- Scraper controls -->
   <div class="controls">
-    <input id="url-input" type="url" placeholder="Paste any job page URL to scan…" />
+    <input id="url-input" type="url" placeholder="Paste any job page URL to scan…" autocomplete="url" spellcheck="false" />
     <button class="btn btn-primary" id="btn-fetch" onclick="scrapeFromUrl()">Scan URL</button>
     <button class="btn btn-ghost" id="btn-load" onclick="loadSavedJobs()">Load saved</button>
     <button class="btn btn-ghost" id="btn-export" onclick="exportJobs()">Export JSON</button>
@@ -295,7 +262,7 @@
 
   <!-- Search -->
   <div class="controls" style="grid-template-columns:1fr; padding:10px 14px; margin-bottom:10px;">
-    <input id="search-input" type="search" placeholder="Search by title, bank, or location…" oninput="applyFilters()" />
+    <input id="search-input" type="search" name="job-search" placeholder="Search by title, company, location, or posted date…" autocomplete="off" spellcheck="false" oninput="applyFilters()" />
   </div>
 
   <!-- Filter pills -->
@@ -304,62 +271,6 @@
   <div class="status-bar" id="status-bar"></div>
   <div class="job-grid" id="job-grid"></div>
 </div>
-
-<script type="module">
-  import { initializeApp }  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import { getAuth, onAuthStateChanged, signOut }
-    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-
-  const firebaseConfig = {
-    apiKey:            "AIzaSyCn0BeTzozrBwZVF8Yi8MaR2R7ek1RTHCU",
-    authDomain:        "up-and-forward-61021.firebaseapp.com",
-    projectId:         "up-and-forward-61021",
-    storageBucket:     "up-and-forward-61021.firebasestorage.app",
-    messagingSenderId: "142989822882",
-    appId:             "1:142989822882:web:cd079516bf2ca87499c0fb"
-  };
-
-  const app  = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-
-  onAuthStateChanged(auth, (user) => {
-    const overlay = document.getElementById('auth-overlay');
-    if (!user) {
-      window.location.replace('login.html');
-      return;
-    }
-
-    // ── Render user info ───────────────────────────────────────────────────────
-    const name   = user.displayName || user.email?.split('@')[0] || 'User';
-    const email  = user.email || '';
-    const photo  = user.photoURL;
-    const initials = name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
-
-    document.getElementById('user-name').textContent  = name;
-    document.getElementById('user-email').textContent = email;
-    const avatarEl = document.getElementById('user-avatar');
-    if (photo) {
-      avatarEl.innerHTML = `<img src="${encodeURI(photo)}" alt="${escHtml(name)}" referrerpolicy="no-referrer" />`;
-    } else {
-      avatarEl.textContent = initials;
-    }
-
-    // Show page
-    overlay.style.transition = 'opacity 0.25s';
-    overlay.style.opacity = '0';
-    setTimeout(() => overlay.remove(), 260);
-    document.getElementById('main-nav').style.display  = '';
-    document.getElementById('main-page').style.display = '';
-
-    // Load jobs
-    loadSavedJobs();
-  });
-
-  window.handleSignOut = async function() {
-    try { await signOut(auth); } catch {}
-    window.location.replace('login.html');
-  };
-</script>
 
 <script>
   // ── Utilities ────────────────────────────────────────────────────────────────
@@ -388,6 +299,7 @@
   const STORAGE_KEY  = 'upforward_jobs_v2';
   const STORAGE_URL  = 'upforward_last_url';
   const JOB_HINTS    = ['job','jobs','career','careers','position','vacancy','intern','internship','graduate','analyst','associate','stilling','stillinger','ledig','trainee'];
+  const API_BASE     = location.protocol === 'file:' ? 'http://localhost:8787' : '';
 
   let allJobs = [];
   let activeFilter = 'All';
@@ -415,11 +327,16 @@
   };
 
   window.applyFilters = function() {
-    const q = document.getElementById('search-input').value.toLowerCase();
+    const searchInput = document.getElementById('search-input');
+    let q = (searchInput?.value || '').toLowerCase().trim();
+    if (/^https?:\/\//i.test(q)) {
+      q = '';
+      if (searchInput) searchInput.value = '';
+    }
     let filtered = allJobs;
     if (activeFilter !== 'All') filtered = filtered.filter(j => j.bank === activeFilter);
     if (q) filtered = filtered.filter(j =>
-      (j.title+j.bank+j.location).toLowerCase().includes(q)
+      (j.title+j.bank+j.location+j.posted_date).toLowerCase().includes(q)
     );
     renderJobGrid(filtered);
   };
@@ -437,7 +354,9 @@
           <div class="job-bank">${escHtml(j.bank || 'Unknown')}</div>
           <div class="job-title" title="${escHtml(j.title)}">${escHtml(j.title || 'Untitled')}</div>
           <div class="job-tags">
+            ${j.is_new ? `<span class="tag-new">NEW</span>` : ''}
             ${j.location ? `<span class="tag">📍 ${escHtml(j.location)}</span>` : ''}
+            ${j.posted_date ? `<span class="tag">Posted ${escHtml(j.posted_date)}</span>` : ''}
             ${j.found_at ? `<span class="tag">${escHtml(relativeTime(j.found_at))}</span>` : ''}
           </div>
         </div>
@@ -457,14 +376,25 @@
   }
 
   // ── Normalise ─────────────────────────────────────────────────────────────────
+  function normaliseDate(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return raw;
+    return parsed.toISOString().slice(0, 10);
+  }
+
   function normalise(job, host) {
     return {
       id:       job.id || `g_${Math.random().toString(16).slice(2,10)}`,
-      bank:     (job.bank || host || 'Unknown').trim(),
+      bank:     (job.bank || job.company || host || 'Unknown').trim(),
       title:    (job.title || '').trim() || 'Untitled role',
       location: (job.location || '').trim(),
       url:      (job.url || '').trim() || '#',
-      found_at: job.found_at || new Date().toISOString()
+      posted_date: normaliseDate(job.posted_date || job.postedDate || job.date_posted || ''),
+      found_at: job.found_at || new Date().toISOString(),
+      is_new:   job.is_new === true
     };
   }
 
@@ -477,22 +407,39 @@
     });
   }
 
+  async function extractWithLocalApi(url) {
+    let response;
+    try {
+      response = await fetch(`${API_BASE}/api/extract-jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+    } catch (error) {
+      const hint = location.protocol === 'file:'
+        ? ' Start local_server.mjs and open http://localhost:8787/dashboard.html.'
+        : '';
+      throw new Error(`${error.message}.${hint}`.trim());
+    }
+    let payload = null;
+    try { payload = await response.json(); } catch {}
+    if (!response.ok) {
+      const message = payload?.error || `HTTP ${response.status}`;
+      throw new Error(message);
+    }
+    const host = new URL(url).hostname;
+    const jobs = Array.isArray(payload?.jobs) ? payload.jobs.map((job) => normalise(job, host)) : [];
+    return { jobs, meta: payload?.meta || {} };
+  }
+
   // ── Load saved jobs ──────────────────────────────────────────────────────────
   window.loadSavedJobs = async function() {
     setStatus('Loading…');
-    const cached = localStorage.getItem(STORAGE_KEY);
-    if (cached) {
-      try {
-        const jobs = JSON.parse(cached);
-        if (Array.isArray(jobs) && jobs.length) { displayJobs(jobs); setStatus('Loaded from cache.', 'ok'); return; }
-      } catch {}
-    }
     try {
       const r = await fetch(`scraper/new_jobs.json?t=${Date.now()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const raw = await r.json();
       const jobs = Array.isArray(raw) ? raw.map(j => normalise(j, 'File')) : [];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
       displayJobs(jobs);
       setStatus(`Loaded ${jobs.length} listings.`, 'ok');
     } catch (err) {
@@ -546,6 +493,7 @@
 
   window.scrapeFromUrl = async function() {
     const url = document.getElementById('url-input').value.trim();
+    const searchInput = document.getElementById('search-input');
     if (!url) { setStatus('Enter a URL first.', 'error'); return; }
     try {
       const parsed = new URL(url);
@@ -553,17 +501,27 @@
     } catch (e) { setStatus(`Invalid URL: ${e.message}`, 'error'); return; }
 
     localStorage.setItem(STORAGE_URL, url);
-    setStatus('Fetching…');
+    if (searchInput) searchInput.value = '';
+    setStatus('Scanning URL with ATS APIs, browser rendering, and OpenAI…');
     ['btn-fetch','btn-load','btn-export'].forEach(id => document.getElementById(id).disabled = true);
 
     try {
-      const { text, via } = await fetchPage(url);
-      const jobs = parseFromHtml(text, url);
+      const { jobs, meta } = await extractWithLocalApi(url);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
       displayJobs(jobs);
-      setStatus(`Found ${jobs.length} listings via ${via}.`, jobs.length ? 'ok' : '');
+      const model = meta.model ? ` (${meta.model})` : '';
+      setStatus(`Found ${jobs.length} listings via scraper pipeline${model}.`, jobs.length ? 'ok' : '');
     } catch (e) {
-      setStatus(`Error: ${e.message}`, 'error');
+      setStatus(`Server extraction failed (${e.message}). Using fallback parser…`, 'error');
+      try {
+        const { text, via } = await fetchPage(url);
+        const fallbackJobs = parseFromHtml(text, url);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(fallbackJobs));
+        displayJobs(fallbackJobs);
+        setStatus(`Fallback found ${fallbackJobs.length} listings via ${via}.`, fallbackJobs.length ? 'ok' : '');
+      } catch (fallbackError) {
+        setStatus(`Error: ${fallbackError.message}`, 'error');
+      }
     } finally {
       ['btn-fetch','btn-load','btn-export'].forEach(id => document.getElementById(id).disabled = false);
     }
@@ -585,6 +543,7 @@
   // ── Restore last URL ──────────────────────────────────────────────────────────
   const lastUrl = localStorage.getItem(STORAGE_URL);
   if (lastUrl) document.getElementById('url-input').value = lastUrl;
+  loadSavedJobs();
 </script>
 
 </body>

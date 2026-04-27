@@ -7,19 +7,6 @@
   <meta http-equiv="X-Frame-Options" content="DENY" />
   <title>Up and Forward — Live Jobs</title>
   <style>
-    .auth-overlay {
-      position: fixed; inset: 0; background: #0a0c10;
-      display: flex; align-items: center; justify-content: center;
-      z-index: 9999;
-    }
-    .spinner {
-      width: 40px; height: 40px;
-      border: 3px solid #1e2230; border-top-color: #2563eb;
-      border-radius: 50%; animation: spin 0.7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
-  <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -128,6 +115,18 @@
     .bank { font-size: 0.74rem; color: var(--muted); margin-bottom: 4px; }
     .title { font-size: 0.96rem; font-weight: 700; margin-bottom: 7px; }
     .location { font-size: 0.8rem; color: var(--muted); }
+    .meta { margin-top: 4px; font-size: 0.78rem; color: var(--muted); }
+    .tag-new {
+      display: inline-block;
+      margin-top: 5px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: rgba(34,197,94,0.15);
+      border: 1px solid #22c55e;
+      color: #22c55e;
+    }
 
     .apply {
       flex-shrink: 0;
@@ -162,35 +161,8 @@
 </head>
 <body>
 
-<!-- Auth guard overlay — removed once Firebase confirms login -->
-<div id="auth-overlay" class="auth-overlay"><div class="spinner"></div></div>
-
-<script type="module">
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-  const firebaseConfig = {
-    apiKey: "AIzaSyCn0BeTzozrBwZVF8Yi8MaR2R7ek1RTHCU",
-    authDomain: "up-and-forward-61021.firebaseapp.com",
-    projectId: "up-and-forward-61021",
-    storageBucket: "up-and-forward-61021.firebasestorage.app",
-    messagingSenderId: "142989822882",
-    appId: "1:142989822882:web:cd079516bf2ca87499c0fb"
-  };
-  const auth = getAuth(initializeApp(firebaseConfig));
-  onAuthStateChanged(auth, (user) => {
-    if (!user) {
-      window.location.replace('../login.html?redirect=scraper/jobs.html');
-      return;
-    }
-    const overlay = document.getElementById('auth-overlay');
-    overlay.style.transition = 'opacity 0.2s';
-    overlay.style.opacity = '0';
-    setTimeout(() => overlay.remove(), 220);
-  });
-</script>
-
   <h1>Up and <span>Forward</span> — Live Listings</h1>
-  <p class="sub">Lim inn en jobb-URL (f.eks. https://abakus.no/joblistings) og hent stillinger direkte i nettleseren.</p>
+  <p class="sub">Lim inn en jobb-URL og hent selskap, stilling og dato via ATS-API-er, browser-rendering og OpenAI.</p>
 
   <div class="controls">
     <input id="urlInput" type="url" placeholder="https://example.com/jobs" />
@@ -214,6 +186,7 @@
 
     const STORAGE_URL_KEY = 'upforward_job_url';
     const STORAGE_JOBS_KEY = 'upforward_jobs_cache';
+    const API_BASE = location.protocol === 'file:' ? 'http://localhost:8787' : '';
     const JOB_HINTS = [
       'job', 'jobs', 'career', 'careers', 'position', 'vacancy',
       'intern', 'internship', 'graduate', 'analyst', 'associate',
@@ -264,14 +237,49 @@
 
     function normalizeJob(job, fallbackHost) {
       const now = new Date().toISOString();
+      const rawPostedDate = String(job.posted_date || job.postedDate || job.date_posted || '').trim();
+      let postedDate = '';
+      if (rawPostedDate) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(rawPostedDate)) {
+          postedDate = rawPostedDate;
+        } else {
+          const parsed = new Date(rawPostedDate);
+          postedDate = Number.isNaN(parsed.getTime()) ? rawPostedDate : parsed.toISOString().slice(0, 10);
+        }
+      }
       return {
         id: job.id || `generic_${Math.random().toString(16).slice(2, 12)}`,
-        bank: job.bank || fallbackHost || 'Unknown source',
+        bank: job.bank || job.company || fallbackHost || 'Unknown source',
         title: (job.title || '').trim() || 'Untitled role',
         location: (job.location || '').trim() || 'Unknown',
         url: (job.url || '').trim() || '#',
+        posted_date: postedDate,
         found_at: job.found_at || now
       };
+    }
+
+    async function extractWithLocalApi(url) {
+      let response;
+      try {
+        response = await fetch(`${API_BASE}/api/extract-jobs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+      } catch (error) {
+        const hint = location.protocol === 'file:'
+          ? ' Start local_server.mjs and open http://localhost:8787/scraper/jobs.html.'
+          : '';
+        throw new Error(`${error.message}.${hint}`.trim());
+      }
+      let payload = null;
+      try { payload = await response.json(); } catch {}
+      if (!response.ok) {
+        throw new Error(payload?.error || `HTTP ${response.status}`);
+      }
+      const host = new URL(url).hostname;
+      const jobs = Array.isArray(payload?.jobs) ? payload.jobs.map((job) => normalizeJob(job, host)) : [];
+      return { jobs, meta: payload?.meta || {} };
     }
 
     function parseLocationFromJsonLd(jobLocation) {
@@ -441,6 +449,8 @@
             <div class="bank">${escapeHtml(j.bank || 'Unknown source')}</div>
             <div class="title">${escapeHtml(j.title || 'Untitled role')}</div>
             <div class="location">${escapeHtml(j.location || 'Unknown location')}</div>
+            ${j.posted_date ? `<div class="meta">Publisert: ${escapeHtml(j.posted_date)}</div>` : ''}
+            ${j.is_new ? '<span class="tag-new">NEW</span>' : ''}
           </div>
           <a class="apply" href="${escapeHtml(j.url || '#')}" target="_blank" rel="noopener noreferrer">View & Apply</a>
         </div>
@@ -448,21 +458,7 @@
     }
 
     async function loadSavedJobs() {
-      setStatus('Laster lagrede stillinger fra nettleser eller new_jobs.json...');
-
-      const localRaw = localStorage.getItem(STORAGE_JOBS_KEY);
-      if (localRaw) {
-        try {
-          const localJobs = JSON.parse(localRaw);
-          if (Array.isArray(localJobs) && localJobs.length) {
-            renderJobs(localJobs);
-            setStatus('Lastet lagrede stillinger fra nettleser-cache.', 'ok');
-            return;
-          }
-        } catch {
-          // Ignore corrupt local cache.
-        }
-      }
+      setStatus('Laster stillinger fra new_jobs.json...');
 
       try {
         const response = await fetch(`new_jobs.json?t=${Date.now()}`);
@@ -499,19 +495,28 @@
       }
 
       localStorage.setItem(STORAGE_URL_KEY, url);
-      setStatus('Henter og analyserer jobbsiden...');
+      setStatus('Kjører scraper-pipeline...');
       fetchBtn.disabled = true;
       loadSavedBtn.disabled = true;
       exportBtn.disabled = true;
 
       try {
-        const { text, via } = await fetchPageText(url);
-        const jobs = parseJobsFromResponse(text, url);
+        const { jobs, meta } = await extractWithLocalApi(url);
         persistCurrentJobs(jobs);
         renderJobs(jobs);
-        setStatus(`Ferdig. Fant ${jobs.length} stillinger (via ${via}).`, jobs.length ? 'ok' : '');
+        const model = meta.model ? ` (${meta.model})` : '';
+        setStatus(`Ferdig. Fant ${jobs.length} stillinger via scraper-pipeline${model}.`, jobs.length ? 'ok' : '');
       } catch (error) {
-        setStatus(`Feil: ${error.message}`, 'error');
+        setStatus(`Server-ekstraksjon feilet (${error.message}). Prøver fallback-parser…`, 'error');
+        try {
+          const { text, via } = await fetchPageText(url);
+          const jobs = parseJobsFromResponse(text, url);
+          persistCurrentJobs(jobs);
+          renderJobs(jobs);
+          setStatus(`Fallback ferdig. Fant ${jobs.length} stillinger (via ${via}).`, jobs.length ? 'ok' : '');
+        } catch (fallbackError) {
+          setStatus(`Feil: ${fallbackError.message}`, 'error');
+        }
       } finally {
         fetchBtn.disabled = false;
         loadSavedBtn.disabled = false;
