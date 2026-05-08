@@ -186,13 +186,29 @@
 
     const STORAGE_URL_KEY = 'upforward_job_url';
     const STORAGE_JOBS_KEY = 'upforward_jobs_cache';
-    const API_BASE = location.protocol === 'file:' ? 'http://localhost:8787' : '';
+    const DEFAULT_REMOTE_API_BASE = 'https://up-forward-scraper.onrender.com';
     const JOB_HINTS = [
       'job', 'jobs', 'career', 'careers', 'position', 'vacancy',
       'intern', 'internship', 'graduate', 'analyst', 'associate',
       'stilling', 'stillinger', 'ledig', 'trainee'
     ];
     let currentJobs = [];
+
+    function resolveApiBase() {
+      const params = new URLSearchParams(location.search);
+      const fromQuery = params.get('api');
+      if (fromQuery) {
+        localStorage.setItem('upforward_api_base', fromQuery.replace(/\/+$/, ''));
+      }
+
+      if (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        return 'http://localhost:8787';
+      }
+
+      return (localStorage.getItem('upforward_api_base') || DEFAULT_REMOTE_API_BASE).replace(/\/+$/, '');
+    }
+
+    const API_BASE = resolveApiBase();
 
     function escapeHtml(value) {
       return String(value ?? '')
@@ -206,6 +222,17 @@
     function setStatus(message, type = '') {
       statusEl.textContent = message;
       statusEl.className = `status${type ? ` ${type}` : ''}`;
+    }
+
+    function formatPipelineStatus(count, meta = {}) {
+      const parts = [`Ferdig. Fant ${count} stillinger`];
+      if (meta.model) parts.push(`modell: ${meta.model}`);
+      if (meta.via) parts.push(`kilde: ${meta.via}`);
+      parts.push(`AI: ${Number(meta.openai_count || 0)}`);
+      parts.push(`heuristikk: ${Number(meta.heuristic_count || 0)}`);
+      parts.push(`ATS: ${Number(meta.ats_count || 0)}`);
+      if (meta.warning) parts.push(`warning: ${meta.warning}`);
+      return parts.join(' | ');
     }
 
     function dedupeJobs(jobs) {
@@ -512,7 +539,7 @@
       }
 
       localStorage.setItem(STORAGE_URL_KEY, url);
-      setStatus('Kjører scraper-pipeline...');
+      setStatus(`Kjører scraper-pipeline via ${API_BASE}...`);
       fetchBtn.disabled = true;
       loadSavedBtn.disabled = true;
       exportBtn.disabled = true;
@@ -521,8 +548,7 @@
         const { jobs, meta } = await extractWithLocalApi(url);
         persistCurrentJobs(jobs);
         renderJobs(jobs);
-        const model = meta.model ? ` (${meta.model})` : '';
-        setStatus(`Ferdig. Fant ${jobs.length} stillinger via scraper-pipeline${model}.`, jobs.length ? 'ok' : '');
+        setStatus(formatPipelineStatus(jobs.length, meta), jobs.length ? 'ok' : '');
       } catch (error) {
         setStatus(`Server-ekstraksjon feilet (${error.message}). Prøver fallback-parser…`, 'error');
         try {

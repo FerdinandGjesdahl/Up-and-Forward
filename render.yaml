@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: up-forward-scraper
+    runtime: node
+    plan: free
+    buildCommand: npm run render-build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: OPENAI_MODEL
+        value: gpt-4.1-mini
+      - key: RENDERED_FETCH
+        value: auto
+      - key: MONITOR_ENABLED
+        value: "false"
+      - key: OPENAI_API_KEY
+        sync: false

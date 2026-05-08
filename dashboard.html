@@ -300,7 +300,20 @@
   const STORAGE_URL  = 'upforward_last_url';
   const JOB_HINTS    = ['job','jobs','career','careers','position','vacancy','intern','internship','graduate','analyst','associate','stilling','stillinger','ledig','trainee'];
   const IS_LOCAL     = location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-  const API_BASE     = IS_LOCAL ? 'http://localhost:8787' : null;
+  const DEFAULT_REMOTE_API_BASE = 'https://up-forward-scraper.onrender.com';
+
+  function resolveApiBase() {
+    const params = new URLSearchParams(location.search);
+    const fromQuery = params.get('api');
+    if (fromQuery) {
+      localStorage.setItem('upforward_api_base', fromQuery.replace(/\/+$/, ''));
+    }
+
+    if (IS_LOCAL) return 'http://localhost:8787';
+    return (localStorage.getItem('upforward_api_base') || DEFAULT_REMOTE_API_BASE).replace(/\/+$/, '');
+  }
+
+  const API_BASE = resolveApiBase();
 
   let allJobs = [];
   let activeFilter = 'All';
@@ -310,6 +323,17 @@
     const el = document.getElementById('status-bar');
     el.textContent = msg;
     el.className = `status-bar${type ? ' '+type : ''}`;
+  }
+
+  function formatPipelineStatus(count, meta = {}) {
+    const parts = [`Found ${count} listings`];
+    if (meta.model) parts.push(`model: ${meta.model}`);
+    if (meta.via) parts.push(`source: ${meta.via}`);
+    parts.push(`AI: ${Number(meta.openai_count || 0)}`);
+    parts.push(`heuristic: ${Number(meta.heuristic_count || 0)}`);
+    parts.push(`ATS: ${Number(meta.ats_count || 0)}`);
+    if (meta.warning) parts.push(`warning: ${meta.warning}`);
+    return parts.join(' | ');
   }
 
   // ── Filter pills ──────────────────────────────────────────────────────────────
@@ -514,7 +538,7 @@
 
     localStorage.setItem(STORAGE_URL, url);
     if (searchInput) searchInput.value = '';
-    setStatus('Scanning URL with ATS APIs, browser rendering, and OpenAI…');
+    setStatus(`Scanning URL with ATS APIs, browser rendering, and OpenAI via ${API_BASE}…`);
     ['btn-fetch','btn-load','btn-export'].forEach(id => document.getElementById(id).disabled = true);
 
     const runFallback = async (reason) => {
@@ -531,15 +555,10 @@
     };
 
     try {
-      if (!API_BASE) {
-        await runFallback(null);
-      } else {
-        const { jobs, meta } = await extractWithLocalApi(url);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
-        displayJobs(jobs);
-        const model = meta.model ? ` (${meta.model})` : '';
-        setStatus(`Found ${jobs.length} listings via scraper pipeline${model}.`, jobs.length ? 'ok' : '');
-      }
+      const { jobs, meta } = await extractWithLocalApi(url);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
+      displayJobs(jobs);
+      setStatus(formatPipelineStatus(jobs.length, meta), jobs.length ? 'ok' : '');
     } catch (e) {
       await runFallback(`Server error (${e.message})`);
     } finally {

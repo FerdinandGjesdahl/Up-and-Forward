@@ -48,3 +48,20 @@ The URL scanner calls `POST /api/extract-jobs`, which fetches the page and asks 
 - link
 
 The server also tries structured ATS APIs for Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Teamtailor, Recruitee, and Breezy before falling back to normal HTML/Jina fetch and Playwright-rendered pages. It does not bypass CAPTCHA, login walls, or explicit anti-bot blocking.
+
+## Render beta backend
+
+This repo includes `render.yaml` for a free Render web service named `up-forward-scraper`.
+
+1. In Render, create a new Blueprint from this GitHub repo.
+2. Add the secret environment variable `OPENAI_API_KEY`.
+3. Deploy the service.
+4. If Render gives you the default URL `https://up-forward-scraper.onrender.com`, GitHub Pages will use it automatically.
+
+If Render gives you a different URL, open the GitHub Pages scraper once with:
+
+```text
+https://ferdinandgjesdahl.github.io/Up-and-Forward/scraper/jobs.html?api=https://YOUR-RENDER-URL.onrender.com
+```
+
+The page saves that API base in `localStorage` for later visits.

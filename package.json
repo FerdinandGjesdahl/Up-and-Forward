@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node local_server.mjs",
     "dev": "node local_server.mjs",
-    "install:browsers": "playwright install chromium"
+    "install:browsers": "playwright install chromium",
+    "render-build": "npm install && playwright install chromium"
   },
   "dependencies": {
     "playwright": "^1.44.0",
