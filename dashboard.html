@@ -299,7 +299,8 @@
   const STORAGE_KEY  = 'upforward_jobs_v2';
   const STORAGE_URL  = 'upforward_last_url';
   const JOB_HINTS    = ['job','jobs','career','careers','position','vacancy','intern','internship','graduate','analyst','associate','stilling','stillinger','ledig','trainee'];
-  const API_BASE     = location.protocol === 'file:' ? 'http://localhost:8787' : '';
+  const IS_LOCAL     = location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  const API_BASE     = IS_LOCAL ? 'http://localhost:8787' : null;
 
   let allJobs = [];
   let activeFilter = 'All';
@@ -505,23 +506,31 @@
     setStatus('Scanning URL with ATS APIs, browser rendering, and OpenAI…');
     ['btn-fetch','btn-load','btn-export'].forEach(id => document.getElementById(id).disabled = true);
 
-    try {
-      const { jobs, meta } = await extractWithLocalApi(url);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
-      displayJobs(jobs);
-      const model = meta.model ? ` (${meta.model})` : '';
-      setStatus(`Found ${jobs.length} listings via scraper pipeline${model}.`, jobs.length ? 'ok' : '');
-    } catch (e) {
-      setStatus(`Server extraction failed (${e.message}). Using fallback parser…`, 'error');
+    const runFallback = async (reason) => {
+      if (reason) setStatus(`${reason}. Using link parser…`);
       try {
         const { text, via } = await fetchPage(url);
         const fallbackJobs = parseFromHtml(text, url);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(fallbackJobs));
         displayJobs(fallbackJobs);
-        setStatus(`Fallback found ${fallbackJobs.length} listings via ${via}.`, fallbackJobs.length ? 'ok' : '');
+        setStatus(`Found ${fallbackJobs.length} listings via ${via}.`, fallbackJobs.length ? 'ok' : '');
       } catch (fallbackError) {
         setStatus(`Error: ${fallbackError.message}`, 'error');
       }
+    };
+
+    try {
+      if (!API_BASE) {
+        await runFallback(null);
+      } else {
+        const { jobs, meta } = await extractWithLocalApi(url);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
+        displayJobs(jobs);
+        const model = meta.model ? ` (${meta.model})` : '';
+        setStatus(`Found ${jobs.length} listings via scraper pipeline${model}.`, jobs.length ? 'ok' : '');
+      }
+    } catch (e) {
+      await runFallback(`Server error (${e.message})`);
     } finally {
       ['btn-fetch','btn-load','btn-export'].forEach(id => document.getElementById(id).disabled = false);
     }
