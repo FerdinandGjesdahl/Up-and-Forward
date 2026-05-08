@@ -229,10 +229,27 @@
       try {
         const path = new URL(url).pathname;
         const slug = path.split('/').filter(Boolean).pop() || '';
-        return slug.replace(/[-_]+/g, ' ').trim();
+        return slug.replace(/[-_]+/g, ' ').replace(/^\d{2,}\s+/, '').trim();
       } catch {
         return '';
       }
+    }
+
+    function cleanJobTitle(title, url) {
+      let value = String(title || '').trim().replace(/\s+/g, ' ');
+      value = value.replace(/^\d{2,}\s+/, '');
+      if (value.includes('•')) {
+        value = value.split('•')[0].trim();
+      }
+      const slugTitle = titleFromUrl(url);
+      if (slugTitle && (
+        !value
+        || value.length > 120
+        || /\b(klasse|snarest|sommerjobb|deltid|fulltid|masteroppgave)\b/i.test(value)
+      )) {
+        return slugTitle;
+      }
+      return value || slugTitle;
     }
 
     function normalizeJob(job, fallbackHost) {
@@ -364,7 +381,7 @@
         if (!looksLikeJob(title, url)) return;
         jobs.push({
           bank: host,
-          title: title || titleFromUrl(url),
+          title: cleanJobTitle(title, url),
           location: '',
           url
         });
@@ -382,14 +399,14 @@
         const title = (match[1] || '').trim();
         const url = (match[2] || '').trim();
         if (!url || !looksLikeJob(title, url)) continue;
-        jobs.push({ bank: host, title: title || titleFromUrl(url), location: '', url });
+        jobs.push({ bank: host, title: cleanJobTitle(title, url), location: '', url });
       }
 
       const urlRegex = /(https?:\/\/[^\s<>"')\]]+)/g;
       for (const match of text.matchAll(urlRegex)) {
         const url = (match[1] || '').trim();
         if (!looksLikeJob('', url)) continue;
-        jobs.push({ bank: host, title: titleFromUrl(url), location: '', url });
+        jobs.push({ bank: host, title: cleanJobTitle('', url), location: '', url });
       }
 
       return dedupeJobs(jobs).map((job) => normalizeJob(job, host));

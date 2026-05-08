@@ -389,6 +389,45 @@ function canonicalUrl(value, baseUrl) {
   }
 }
 
+function jobIdFromUrl(value, baseUrl) {
+  const absolute = toAbsoluteUrl(value, baseUrl);
+  if (!absolute) return '';
+  try {
+    const parsed = new URL(absolute);
+    const hashMatch = parsed.hash.match(/job-([a-z0-9_-]+)/i);
+    if (hashMatch) return hashMatch[1].toLowerCase();
+
+    const lastSegment = parsed.pathname.split('/').filter(Boolean).pop() || '';
+    const slugMatch = lastSegment.match(/^(\d{2,})(?:[-_]|$)/);
+    return slugMatch ? slugMatch[1].toLowerCase() : '';
+  } catch {
+    return '';
+  }
+}
+
+function cleanupExtractedTitle(value, url = '', sourceUrl = '') {
+  let title = cleanText(value);
+  if (!title) return '';
+
+  title = title.replace(/^\d{2,}\s+/, '');
+  title = title.replace(/\s+/g, ' ').trim();
+
+  if (title.includes('•')) {
+    title = title.split('•')[0].trim();
+  }
+
+  const slugTitle = titleFromUrl(url, sourceUrl).replace(/^\d{2,}\s+/, '').trim();
+  if (slugTitle && (
+    title.length > 120
+    || /\b\d{1,2}\.?\s+(jan|januar|feb|februar|mar|mars|apr|april|mai|may|jun|juni|jul|juli|aug|september|okt|oct|nov|des|dec)\b/i.test(title)
+    || /\b(klasse|snarest|sommerjobb|deltid|fulltid|masteroppgave)\b/i.test(title)
+  )) {
+    return slugTitle;
+  }
+
+  return title;
+}
+
 function parseRelativeDate(rawText, referenceDate = new Date()) {
   const text = String(rawText || '').toLowerCase().replace(/\s+/g, ' ').trim();
   if (!text) return null;
@@ -1371,7 +1410,7 @@ function mergeAndNormalizeJobs(rawJobs, sourceUrl) {
     if (!url) url = sourceUrl;
 
     const titleRaw = raw.title || raw.role || raw.position || raw.name || '';
-    const title = cleanText(titleRaw) || titleFromUrl(url, sourceUrl);
+    const title = cleanupExtractedTitle(titleRaw, url, sourceUrl) || titleFromUrl(url, sourceUrl);
     if (!title || title.length < 3) continue;
     const titleLower = title.toLowerCase();
     if (/^(title:|url source:|markdown content:)/.test(titleLower)) continue;
@@ -1397,8 +1436,11 @@ function mergeAndNormalizeJobs(rawJobs, sourceUrl) {
     const urlObj = new URL(url);
     const normalizedUrlKey = `${urlObj.origin}${urlObj.pathname}`;
     const sourceCanonical = canonicalUrl(sourceUrl, sourceUrl);
-    const rawId = cleanText(raw.id || raw.job_id || raw.jobId || raw.requisitionId || raw.reqId || '');
-    const dedupeKey = rawId && normalizedUrlKey.toLowerCase() === sourceCanonical
+    const rawId = cleanText(raw.id || raw.job_id || raw.jobId || raw.requisitionId || raw.reqId || '') || jobIdFromUrl(url, sourceUrl);
+    const urlJobId = jobIdFromUrl(url, sourceUrl);
+    const dedupeKey = urlJobId
+      ? `${new URL(sourceUrl).origin}:job:${urlJobId}`.toLowerCase()
+      : rawId && normalizedUrlKey.toLowerCase() === sourceCanonical
       ? `${normalizedUrlKey}#${rawId}`.toLowerCase()
       : normalizedUrlKey.toLowerCase();
     const candidate = {

@@ -454,7 +454,18 @@
     return JOB_HINTS.some(h => `${text} ${url}`.toLowerCase().includes(h));
   }
   function titleFromUrl(url) {
-    try { return new URL(url).pathname.split('/').filter(Boolean).pop()?.replace(/[-_]+/g,' ').trim() || ''; } catch { return ''; }
+    try { return new URL(url).pathname.split('/').filter(Boolean).pop()?.replace(/[-_]+/g,' ').replace(/^\d{2,}\s+/, '').trim() || ''; } catch { return ''; }
+  }
+
+  function cleanJobTitle(title, url) {
+    let value = String(title || '').trim().replace(/\s+/g, ' ');
+    value = value.replace(/^\d{2,}\s+/, '');
+    if (value.includes('•')) value = value.split('•')[0].trim();
+    const slugTitle = titleFromUrl(url);
+    if (slugTitle && (!value || value.length > 120 || /\b(klasse|snarest|sommerjobb|deltid|fulltid|masteroppgave)\b/i.test(value))) {
+      return slugTitle;
+    }
+    return value || slugTitle;
   }
 
   function parseFromHtml(html, base) {
@@ -468,7 +479,7 @@
       let url;
       try { url = new URL(href, base).href; } catch { return; }
       if (!looksLikeJob(title, url)) return;
-      jobs.push({ bank: host, title: title || titleFromUrl(url), location: '', url });
+      jobs.push({ bank: host, title: cleanJobTitle(title, url), location: '', url });
     });
     return dedupe(jobs).map(j => normalise(j, host));
   }
