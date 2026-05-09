@@ -358,6 +358,8 @@
     createUserWithEmailAndPassword,
     sendPasswordResetEmail,
     updateProfile,
+    browserLocalPersistence,
+    setPersistence,
     GoogleAuthProvider
   } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
@@ -373,19 +375,35 @@
   const app             = initializeApp(firebaseConfig);
   const auth            = getAuth(app);
   const googleProvider  = new GoogleAuthProvider();
+  const authReady       = setPersistence(auth, browserLocalPersistence).catch(() => {});
 
   googleProvider.setCustomParameters({ prompt: 'select_account' });
 
+  let authActionInProgress = false;
+
+  function redirectTarget() {
+    const dest = new URLSearchParams(location.search).get('redirect') || 'dashboard.html';
+    if (dest.startsWith('//') || dest.includes('://')) return 'dashboard.html';
+    return dest;
+  }
+
+  function goToDashboard() {
+    window.location.replace(redirectTarget());
+  }
+
+  function hideAuthOverlay() {
+    const overlay = document.getElementById('auth-overlay');
+    if (!overlay) return;
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 260);
+  }
+
   // ── Auth state: redirect already-logged-in users ────────────────────────────
-  onAuthStateChanged(auth, (user) => {
-    document.getElementById('auth-overlay').style.opacity = '0';
-    setTimeout(() => document.getElementById('auth-overlay').remove(), 260);
-    if (user) {
-      // Already signed in — go to dashboard
-      const dest = new URLSearchParams(location.search).get('redirect') || 'dashboard.html';
-      // Prevent open-redirect: only allow relative paths on same origin
-      window.location.replace(dest.startsWith('/') || !dest.includes('://') ? dest : 'dashboard.html');
-    }
+  authReady.finally(() => {
+    onAuthStateChanged(auth, (user) => {
+      hideAuthOverlay();
+      if (user && !authActionInProgress) goToDashboard();
+    });
   });
 
   // ── Friendly error messages (no info leakage) ────────────────────────────────
@@ -423,9 +441,14 @@
     clearBanners();
     const btn = document.getElementById('btn-google');
     setSocialLoading(btn, true);
+    authActionInProgress = true;
     try {
-      await signInWithPopup(auth, googleProvider);
+      await authReady;
+      const cred = await signInWithPopup(auth, googleProvider);
+      await cred.user.getIdToken(true);
+      goToDashboard();
     } catch (err) {
+      authActionInProgress = false;
       setSocialLoading(btn, false, googleOriginal);
       if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
         showError(friendlyError(err.code));
@@ -456,17 +479,22 @@
 
     btn.disabled    = true;
     btn.textContent = currentTab === 'signin' ? 'Signing in…' : 'Creating account…';
+    authActionInProgress = true;
 
     try {
+      await authReady;
+      let cred;
       if (currentTab === 'signin') {
-        await signInWithEmailAndPassword(auth, email, password);
+        cred = await signInWithEmailAndPassword(auth, email, password);
       } else {
         const name = document.getElementById('input-name').value.trim();
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        cred = await createUserWithEmailAndPassword(auth, email, password);
         if (name) await updateProfile(cred.user, { displayName: name });
       }
-      // onAuthStateChanged will redirect
+      await cred.user.getIdToken(true);
+      goToDashboard();
     } catch (err) {
+      authActionInProgress = false;
       showError(friendlyError(err.code));
       btn.disabled    = false;
       btn.textContent = currentTab === 'signin' ? 'Sign in' : 'Create account';
