@@ -419,8 +419,8 @@
     <main class="dashboard-main">
       <!-- Scraper controls -->
       <div class="controls">
-        <textarea id="url-input" placeholder="Paste one or more job page URLs. Put each URL on its own line." autocomplete="url" spellcheck="false"></textarea>
-        <button class="btn btn-primary" id="btn-fetch" onclick="scrapeFromUrl()">Scan URLs</button>
+        <textarea id="url-input" placeholder="Paste a new careers/job URL to add it to this dashboard." autocomplete="url" spellcheck="false"></textarea>
+        <button class="btn btn-primary" id="btn-fetch" onclick="scrapeFromUrl()">Scan URL</button>
         <button class="btn btn-ghost" id="btn-load" onclick="loadSavedJobs()">Saved jobs</button>
         <button class="btn btn-ghost" id="btn-export" onclick="exportJobs()">Export JSON</button>
         <button class="btn btn-ghost" id="btn-clear" onclick="clearSavedJobs()">Clear</button>
@@ -441,7 +441,6 @@
     <aside class="source-panel" aria-label="Scanned URLs">
       <div class="source-panel-header">
         <h2>Scanned URLs</h2>
-        <button class="source-action" id="btn-scan-sources" type="button" onclick="scanSavedSources()">Scan all</button>
       </div>
       <div class="source-list" id="source-list"></div>
     </aside>
@@ -946,7 +945,7 @@
   }
 
   function setScanDisabled(disabled) {
-    ['btn-fetch','btn-load','btn-export','btn-clear','btn-scan-sources'].forEach((id) => {
+    ['btn-fetch','btn-load','btn-export','btn-clear'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.disabled = disabled;
     });
@@ -995,7 +994,6 @@
   async function scanUrlsSequentially(urls) {
     const searchInput = document.getElementById('search-input');
     if (searchInput) searchInput.value = '';
-    localStorage.setItem(lastUrlKey(), urls.join('\n'));
     setScanDisabled(true);
 
     let successCount = 0;
@@ -1013,6 +1011,8 @@
       const jobs = await fetchSavedJobs();
       displayJobs(jobs);
       await refreshSources();
+      document.getElementById('url-input').value = '';
+      localStorage.removeItem(lastUrlKey());
       setStatus(`Finished scanning ${successCount}/${urls.length} URL${urls.length === 1 ? '' : 's'}${failureCount ? ` (${failureCount} failed)` : ''}.`, failureCount ? 'error' : 'ok');
     } finally {
       setScanDisabled(false);
@@ -1039,18 +1039,6 @@
     if (!requireUser()) return;
     document.getElementById('url-input').value = url;
     await scanUrlsSequentially([url]);
-  };
-
-  window.scanSavedSources = async function() {
-    if (!requireUser()) return;
-    const sources = await fetchSavedSources();
-    const urls = sources.map((source) => source.url).filter(Boolean);
-    if (!urls.length) {
-      setStatus('No saved URLs to scan yet.', 'error');
-      return;
-    }
-    document.getElementById('url-input').value = urls.join('\n');
-    await scanUrlsSequentially(urls);
   };
 
   window.clearSavedJobs = async function() {
@@ -1088,8 +1076,6 @@
 
   window.bootstrapUserDashboard = function(user) {
     currentUser = user;
-    const lastUrl = localStorage.getItem(lastUrlKey());
-    if (lastUrl) document.getElementById('url-input').value = lastUrl;
     loadSavedJobs();
   };
 </script>
