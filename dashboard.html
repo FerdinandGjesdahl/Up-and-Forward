@@ -843,13 +843,22 @@
     const jobsFromSource = jobs.map((job) => ({ ...job, source_url: url }));
     displayJobs(jobsFromSource);
 
+    let saved = null;
     try {
-      const saved = await mergeSavedJobs(jobsFromSource);
-      await saveSourceUrl(url, { count: jobsFromSource.length });
+      saved = await mergeSavedJobs(jobsFromSource);
       displayJobs(saved.jobs);
-      setStatus(`${statusText} | saved new: ${saved.added}`, okType);
     } catch (saveError) {
-      setStatus(`${statusText} | Firebase save failed: ${saveError.message}`, 'error');
+      const sessionJobs = dedupe([...jobsFromSource, ...allJobs]);
+      displayJobs(sessionJobs);
+      setStatus(`${statusText} | Firebase jobs save failed: ${saveError.message}`, 'error');
+      return;
+    }
+
+    try {
+      await saveSourceUrl(url, { count: jobsFromSource.length });
+      setStatus(`${statusText} | saved new: ${saved.added}`, okType);
+    } catch (sourceError) {
+      setStatus(`${statusText} | saved new: ${saved.added} | source list save failed: ${sourceError.message}`, 'error');
     }
   }
 
