@@ -180,58 +180,6 @@
     .status-bar.error { color: var(--red); }
     .status-bar.ok { color: var(--green); }
 
-    .source-strip {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px 14px;
-      margin-bottom: 14px;
-    }
-    .source-strip-title {
-      color: var(--muted);
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-    }
-    .source-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .source-chip {
-      align-items: center;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      color: var(--muted);
-      display: inline-flex;
-      font-size: 0.72rem;
-      font-weight: 600;
-      gap: 8px;
-      max-width: 100%;
-      padding: 6px 10px;
-    }
-    .source-chip a {
-      color: var(--text);
-      max-width: 360px;
-      overflow: hidden;
-      text-decoration: none;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .source-chip a:hover { color: var(--accent-light); }
-    .source-chip button {
-      background: transparent;
-      border: 0;
-      color: var(--accent-light);
-      cursor: pointer;
-      font: inherit;
-      font-weight: 700;
-      padding: 0;
-    }
-
     /* ── Job cards ── */
     .job-grid { display: flex; flex-direction: column; gap: 10px; }
 
@@ -371,10 +319,6 @@
   <div class="filters" id="filter-pills"></div>
 
   <div class="status-bar" id="status-bar"></div>
-  <div class="source-strip">
-    <div class="source-strip-title">Scanned URLs</div>
-    <div class="source-list" id="source-list"></div>
-  </div>
   <div class="job-grid" id="job-grid"></div>
 </div>
 
@@ -571,47 +515,14 @@
     return snapshot.docs.map((item) => item.data());
   }
 
-  function sourceLabel(url) {
-    try {
-      const parsed = new URL(url);
-      return `${parsed.hostname}${parsed.pathname.replace(/\/+$/, '') || '/'}`;
-    } catch {
-      return url;
-    }
-  }
-
-  function renderSources(sources) {
-    const list = document.getElementById('source-list');
-    if (!list) return;
-    const safeSources = Array.isArray(sources) ? sources.filter((source) => source?.url) : [];
-    document.getElementById('stat-sources').textContent = safeSources.length;
-    if (!safeSources.length) {
-      list.innerHTML = '<span class="tag">No scanned URLs yet</span>';
-      return;
-    }
-    list.innerHTML = safeSources.map((source) => `
-      <span class="source-chip">
-        <a href="${escHtml(safeUrl(source.url))}" target="_blank" rel="noopener noreferrer" title="${escHtml(source.url)}">${escHtml(sourceLabel(source.url))}</a>
-        <span>${Number(source.last_count || 0)} jobs</span>
-        <button type="button" onclick="rescanSource(decodeURIComponent('${escHtml(encodeURIComponent(source.url))}'))">Scan</button>
-      </span>
-    `).join('');
-  }
-
-  async function refreshSources() {
-    const sources = await fetchSavedSources();
-    renderSources(sources);
-    return sources;
-  }
-
-  async function saveSourceUrl(url, details = {}) {
+  async function saveSourceUrl(url) {
     const { serverTimestamp, setDoc } = store();
     await setDoc(userDoc('sources', stableId(url)), {
       url,
-      last_count: Number(details.count || 0),
       last_scanned_at: serverTimestamp()
     }, { merge: true });
-    await refreshSources();
+    const sources = await fetchSavedSources();
+    document.getElementById('stat-sources').textContent = sources.length;
   }
 
   async function mergeSavedJobs(incomingJobs) {
@@ -775,12 +686,12 @@
     setStatus('Loading saved jobs…');
     try {
       const [jobs, sources] = await Promise.all([fetchSavedJobs(), fetchSavedSources()]);
-      renderSources(sources);
+      document.getElementById('stat-sources').textContent = sources.length;
       displayJobs(jobs);
       setStatus(jobs.length ? `Loaded ${jobs.length} saved listings from Firebase.` : 'No saved jobs yet. Add a careers URL to start.', jobs.length ? 'ok' : '');
     } catch (error) {
       displayJobs([]);
-      renderSources([]);
+      document.getElementById('stat-sources').textContent = '—';
       setStatus(`Could not load saved jobs from Firebase: ${error.message}`, 'error');
     }
   };
@@ -843,22 +754,13 @@
     const jobsFromSource = jobs.map((job) => ({ ...job, source_url: url }));
     displayJobs(jobsFromSource);
 
-    let saved = null;
     try {
-      saved = await mergeSavedJobs(jobsFromSource);
+      const saved = await mergeSavedJobs(jobsFromSource);
+      await saveSourceUrl(url);
       displayJobs(saved.jobs);
-    } catch (saveError) {
-      const sessionJobs = dedupe([...jobsFromSource, ...allJobs]);
-      displayJobs(sessionJobs);
-      setStatus(`${statusText} | Firebase jobs save failed: ${saveError.message}`, 'error');
-      return;
-    }
-
-    try {
-      await saveSourceUrl(url, { count: jobsFromSource.length });
       setStatus(`${statusText} | saved new: ${saved.added}`, okType);
-    } catch (sourceError) {
-      setStatus(`${statusText} | saved new: ${saved.added} | source list save failed: ${sourceError.message}`, 'error');
+    } catch (saveError) {
+      setStatus(`${statusText} | Firebase save failed: ${saveError.message}`, 'error');
     }
   }
 
@@ -899,12 +801,6 @@
     }
   };
 
-  window.rescanSource = async function(url) {
-    if (!requireUser()) return;
-    document.getElementById('url-input').value = url;
-    await scrapeFromUrl();
-  };
-
   window.clearSavedJobs = async function() {
     if (!requireUser()) return;
     if (!window.confirm('Clear all saved jobs and source URLs from this dashboard?')) return;
@@ -917,7 +813,7 @@
         ...sources.map((source) => deleteDoc(userDoc('sources', stableId(source.url))))
       ]);
       displayJobs([]);
-      renderSources([]);
+      document.getElementById('stat-sources').textContent = '0';
       setStatus('Cleared your saved dashboard from Firebase.', 'ok');
     } catch (error) {
       setStatus(`Could not clear Firebase data: ${error.message}`, 'error');
