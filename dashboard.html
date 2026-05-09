@@ -753,15 +753,8 @@
   async function showAndSaveJobs(jobs, url, statusText, okType = '') {
     const jobsFromSource = jobs.map((job) => ({ ...job, source_url: url }));
     displayJobs(jobsFromSource);
-
-    try {
-      const saved = await mergeSavedJobs(jobsFromSource);
-      await saveSourceUrl(url);
-      displayJobs(saved.jobs);
-      setStatus(`${statusText} | saved new: ${saved.added}`, okType);
-    } catch (saveError) {
-      setStatus(`${statusText} | Firebase save failed: ${saveError.message}`, 'error');
-    }
+    document.getElementById('stat-sources').textContent = '1';
+    setStatus(statusText, okType);
   }
 
   window.scrapeFromUrl = async function() {
