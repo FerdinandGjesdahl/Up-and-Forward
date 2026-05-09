@@ -1771,7 +1771,7 @@ async function fetchPageSources(url) {
     }
   }
 
-  if (RENDERED_FETCH === 'always' || (RENDERED_FETCH === 'auto' && (!candidates.length || candidates[0].score < 35))) {
+  if (!['0', 'false', 'off', 'disabled', 'never'].includes(RENDERED_FETCH)) {
     try {
       const text = await fetchRenderedSource(url);
       candidates.push({
