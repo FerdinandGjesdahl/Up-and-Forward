@@ -99,7 +99,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Page layout ── */
-    .page { max-width: 1360px; margin: 0 auto; padding: 32px 24px 60px; }
+    .page { max-width: 1080px; margin: 0 auto; padding: 32px 24px 60px; }
 
     .page-header { margin-bottom: 28px; }
     .page-header h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.4px; margin-bottom: 4px; }
@@ -118,108 +118,6 @@
     .stat-value.accent { color: var(--accent-light); }
     .stat-sub { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
 
-    .dashboard-layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 320px;
-      gap: 16px;
-      align-items: start;
-    }
-    .dashboard-main { min-width: 0; }
-    .source-panel {
-      position: sticky;
-      top: 76px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 14px;
-    }
-    .source-panel-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-    .source-panel h2 {
-      font-size: 0.82rem;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-    .source-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      max-height: calc(100vh - 180px);
-      overflow: auto;
-      padding-right: 2px;
-    }
-    .source-item {
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
-      background: var(--bg);
-    }
-    .source-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 8px;
-      margin-bottom: 6px;
-    }
-    .source-title {
-      min-width: 0;
-      color: var(--text);
-      font-size: 0.8rem;
-      font-weight: 700;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .source-status {
-      flex-shrink: 0;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      font-size: 0.64rem;
-      font-weight: 800;
-      padding: 2px 7px;
-      text-transform: uppercase;
-    }
-    .source-status.ok { border-color: rgba(16,185,129,0.45); color: var(--green); }
-    .source-status.error { border-color: rgba(239,68,68,0.45); color: var(--red); }
-    .source-url {
-      color: var(--muted);
-      display: block;
-      font-size: 0.72rem;
-      line-height: 1.35;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      text-decoration: none;
-      margin-bottom: 8px;
-    }
-    .source-url:hover { color: var(--accent-light); }
-    .source-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      color: var(--muted);
-      font-size: 0.68rem;
-    }
-    .source-action {
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      background: transparent;
-      color: var(--text);
-      cursor: pointer;
-      font-size: 0.68rem;
-      font-weight: 700;
-      padding: 4px 8px;
-    }
-    .source-action:hover { border-color: var(--accent); color: var(--accent-light); }
-
     /* ── Controls ── */
     .controls {
       background: var(--surface);
@@ -231,8 +129,7 @@
       gap: 10px;
       margin-bottom: 14px;
     }
-    .controls input,
-    .controls textarea {
+    .controls input {
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -243,16 +140,8 @@
       transition: border-color 0.2s, box-shadow 0.2s;
       width: 100%;
     }
-    .controls textarea {
-      min-height: 48px;
-      max-height: 150px;
-      resize: vertical;
-      line-height: 1.35;
-    }
-    .controls input:focus,
-    .controls textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
-    .controls input::placeholder,
-    .controls textarea::placeholder { color: var(--muted); }
+    .controls input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+    .controls input::placeholder { color: var(--muted); }
 
     .btn {
       border: 1px solid transparent;
@@ -290,6 +179,58 @@
     .status-bar { font-size: 0.82rem; color: var(--muted); margin-bottom: 10px; min-height: 1.2em; }
     .status-bar.error { color: var(--red); }
     .status-bar.ok { color: var(--green); }
+
+    .source-strip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+    .source-strip-title {
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .source-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .source-chip {
+      align-items: center;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      display: inline-flex;
+      font-size: 0.72rem;
+      font-weight: 600;
+      gap: 8px;
+      max-width: 100%;
+      padding: 6px 10px;
+    }
+    .source-chip a {
+      color: var(--text);
+      max-width: 360px;
+      overflow: hidden;
+      text-decoration: none;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .source-chip a:hover { color: var(--accent-light); }
+    .source-chip button {
+      background: transparent;
+      border: 0;
+      color: var(--accent-light);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      padding: 0;
+    }
 
     /* ── Job cards ── */
     .job-grid { display: flex; flex-direction: column; gap: 10px; }
@@ -365,9 +306,6 @@
       .nav-right { gap: 10px; }
       .user-chip { display: none; }
       .stats { grid-template-columns: 1fr; }
-      .dashboard-layout { grid-template-columns: 1fr; }
-      .source-panel { position: static; }
-      .source-list { max-height: none; }
       .controls { grid-template-columns: 1fr; }
       .job { flex-direction: column; align-items: flex-start; }
     }
@@ -415,36 +353,29 @@
     </div>
   </div>
 
-  <div class="dashboard-layout">
-    <main class="dashboard-main">
-      <!-- Scraper controls -->
-      <div class="controls">
-        <textarea id="url-input" placeholder="Paste a new careers/job URL to add it to this dashboard." autocomplete="url" spellcheck="false"></textarea>
-        <button class="btn btn-primary" id="btn-fetch" onclick="scrapeFromUrl()">Scan URL</button>
-        <button class="btn btn-ghost" id="btn-load" onclick="loadSavedJobs()">Saved jobs</button>
-        <button class="btn btn-ghost" id="btn-export" onclick="exportJobs()">Export JSON</button>
-        <button class="btn btn-ghost" id="btn-clear" onclick="clearSavedJobs()">Clear</button>
-      </div>
-
-      <!-- Search -->
-      <div class="controls" style="grid-template-columns:1fr; padding:10px 14px; margin-bottom:10px;">
-        <input id="search-input" type="search" name="job-search" placeholder="Search by title, company, location, or posted date…" autocomplete="off" spellcheck="false" oninput="applyFilters()" />
-      </div>
-
-      <!-- Filter pills -->
-      <div class="filters" id="filter-pills"></div>
-
-      <div class="status-bar" id="status-bar"></div>
-      <div class="job-grid" id="job-grid"></div>
-    </main>
-
-    <aside class="source-panel" aria-label="Scanned URLs">
-      <div class="source-panel-header">
-        <h2>Scanned URLs</h2>
-      </div>
-      <div class="source-list" id="source-list"></div>
-    </aside>
+  <!-- Scraper controls -->
+  <div class="controls">
+    <input id="url-input" type="url" placeholder="Paste any job page URL to scan…" autocomplete="url" spellcheck="false" />
+    <button class="btn btn-primary" id="btn-fetch" onclick="scrapeFromUrl()">Scan URL</button>
+    <button class="btn btn-ghost" id="btn-load" onclick="loadSavedJobs()">Saved jobs</button>
+    <button class="btn btn-ghost" id="btn-export" onclick="exportJobs()">Export JSON</button>
+    <button class="btn btn-ghost" id="btn-clear" onclick="clearSavedJobs()">Clear</button>
   </div>
+
+  <!-- Search -->
+  <div class="controls" style="grid-template-columns:1fr; padding:10px 14px; margin-bottom:10px;">
+    <input id="search-input" type="search" name="job-search" placeholder="Search by title, company, location, or posted date…" autocomplete="off" spellcheck="false" oninput="applyFilters()" />
+  </div>
+
+  <!-- Filter pills -->
+  <div class="filters" id="filter-pills"></div>
+
+  <div class="status-bar" id="status-bar"></div>
+  <div class="source-strip">
+    <div class="source-strip-title">Scanned URLs</div>
+    <div class="source-list" id="source-list"></div>
+  </div>
+  <div class="job-grid" id="job-grid"></div>
 </div>
 
 <script type="module">
@@ -554,14 +485,6 @@
       return `${Math.floor(h / 24)}d ago`;
     } catch { return ''; }
   }
-  function sourceTime(value) {
-    try {
-      if (value?.toDate) return value.toDate().toISOString();
-      if (typeof value?.seconds === 'number') return new Date(value.seconds * 1000).toISOString();
-      if (value) return new Date(value).toISOString();
-    } catch {}
-    return '';
-  }
 
   const STORAGE_URL_PREFIX = 'upforward_last_url_';
   const JOB_HINTS    = ['job','jobs','career','careers','position','vacancy','intern','internship','graduate','analyst','associate','stilling','stillinger','ledig','trainee'];
@@ -651,8 +574,7 @@
   function sourceLabel(url) {
     try {
       const parsed = new URL(url);
-      const path = parsed.pathname.replace(/\/+$/, '') || '/';
-      return `${parsed.hostname}${path}`;
+      return `${parsed.hostname}${parsed.pathname.replace(/\/+$/, '') || '/'}`;
     } catch {
       return url;
     }
@@ -664,28 +586,16 @@
     const safeSources = Array.isArray(sources) ? sources.filter((source) => source?.url) : [];
     document.getElementById('stat-sources').textContent = safeSources.length;
     if (!safeSources.length) {
-      list.innerHTML = `<div class="empty" style="padding:28px 10px;"><p>No scanned URLs yet.</p></div>`;
+      list.innerHTML = '<span class="tag">No scanned URLs yet</span>';
       return;
     }
-
-    list.innerHTML = safeSources.map((source) => {
-      const scannedAt = sourceTime(source.last_scanned_at);
-      const status = source.last_status || 'ok';
-      const count = Number(source.last_count || 0);
-      return `
-        <div class="source-item">
-          <div class="source-top">
-            <div class="source-title" title="${escHtml(sourceLabel(source.url))}">${escHtml(sourceLabel(source.url))}</div>
-            <span class="source-status ${status === 'error' ? 'error' : 'ok'}">${escHtml(status)}</span>
-          </div>
-          <a class="source-url" href="${escHtml(safeUrl(source.url))}" target="_blank" rel="noopener noreferrer">${escHtml(source.url)}</a>
-          <div class="source-footer">
-            <span>${count} listings${scannedAt ? ` · ${escHtml(relativeTime(scannedAt))}` : ''}</span>
-            <button class="source-action" type="button" onclick="rescanSource('${escHtml(source.url)}')">Scan</button>
-          </div>
-        </div>
-      `;
-    }).join('');
+    list.innerHTML = safeSources.map((source) => `
+      <span class="source-chip">
+        <a href="${escHtml(safeUrl(source.url))}" target="_blank" rel="noopener noreferrer" title="${escHtml(source.url)}">${escHtml(sourceLabel(source.url))}</a>
+        <span>${Number(source.last_count || 0)} jobs</span>
+        <button type="button" onclick="rescanSource(decodeURIComponent('${escHtml(encodeURIComponent(source.url))}'))">Scan</button>
+      </span>
+    `).join('');
   }
 
   async function refreshSources() {
@@ -699,8 +609,6 @@
     await setDoc(userDoc('sources', stableId(url)), {
       url,
       last_count: Number(details.count || 0),
-      last_status: details.status || 'ok',
-      last_error: details.error || '',
       last_scanned_at: serverTimestamp()
     }, { merge: true });
     await refreshSources();
@@ -931,114 +839,61 @@
     throw new Error(errs.join(' | '));
   }
 
-  function parseInputUrls(value) {
-    return [...new Set(String(value || '')
-      .split(/[\s,]+/)
-      .map((item) => item.trim())
-      .filter(Boolean))];
-  }
-
-  function validateScanUrl(url) {
-    const parsed = new URL(url);
-    if (!['http:','https:'].includes(parsed.protocol)) throw new Error('URL must start with http:// or https://');
-    return parsed.href;
-  }
-
-  function setScanDisabled(disabled) {
-    ['btn-fetch','btn-load','btn-export','btn-clear'].forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) el.disabled = disabled;
-    });
-  }
-
   async function showAndSaveJobs(jobs, url, statusText, okType = '') {
     const jobsFromSource = jobs.map((job) => ({ ...job, source_url: url }));
     displayJobs(jobsFromSource);
 
     try {
       const saved = await mergeSavedJobs(jobsFromSource);
-      await saveSourceUrl(url, { count: jobsFromSource.length, status: 'ok' });
+      await saveSourceUrl(url, { count: jobsFromSource.length });
       displayJobs(saved.jobs);
       setStatus(`${statusText} | saved new: ${saved.added}`, okType);
-      return saved;
     } catch (saveError) {
       setStatus(`${statusText} | Firebase save failed: ${saveError.message}`, 'error');
-      return null;
-    }
-  }
-
-  async function scanOneUrl(url, index = 0, total = 1) {
-    const prefix = total > 1 ? `[${index + 1}/${total}] ` : '';
-    const runFallback = async (reason) => {
-      if (reason) setStatus(`${prefix}${reason}. Using link parser…`);
-      try {
-        const { text, via } = await fetchPage(url);
-        const fallbackJobs = parseFromHtml(text, url).map((job) => ({ ...job, source_url: url }));
-        return await showAndSaveJobs(fallbackJobs, url, `${prefix}Found ${fallbackJobs.length} listings via ${via}.`, fallbackJobs.length ? 'ok' : '');
-      } catch (fallbackError) {
-        await saveSourceUrl(url, { count: 0, status: 'error', error: fallbackError.message }).catch(() => {});
-        setStatus(`${prefix}Error: ${fallbackError.message}`, 'error');
-        throw fallbackError;
-      }
-    };
-
-    try {
-      setStatus(`${prefix}Scanning ${url} with ATS APIs, browser rendering, and OpenAI via ${API_BASE}…`);
-      const { jobs, meta } = await extractWithLocalApi(url);
-      return await showAndSaveJobs(jobs, url, `${prefix}${formatPipelineStatus(jobs.length, meta)}`, jobs.length ? 'ok' : '');
-    } catch (e) {
-      return await runFallback(`Server error (${e.message})`);
-    }
-  }
-
-  async function scanUrlsSequentially(urls) {
-    const searchInput = document.getElementById('search-input');
-    if (searchInput) searchInput.value = '';
-    setScanDisabled(true);
-
-    let successCount = 0;
-    let failureCount = 0;
-    try {
-      for (let i = 0; i < urls.length; i += 1) {
-        try {
-          await scanOneUrl(urls[i], i, urls.length);
-          successCount += 1;
-        } catch {
-          failureCount += 1;
-        }
-      }
-
-      const jobs = await fetchSavedJobs();
-      displayJobs(jobs);
-      await refreshSources();
-      document.getElementById('url-input').value = '';
-      localStorage.removeItem(lastUrlKey());
-      setStatus(`Finished scanning ${successCount}/${urls.length} URL${urls.length === 1 ? '' : 's'}${failureCount ? ` (${failureCount} failed)` : ''}.`, failureCount ? 'error' : 'ok');
-    } finally {
-      setScanDisabled(false);
     }
   }
 
   window.scrapeFromUrl = async function() {
     if (!requireUser()) return;
-    const rawUrls = parseInputUrls(document.getElementById('url-input').value);
-    if (!rawUrls.length) { setStatus('Enter at least one URL first.', 'error'); return; }
-
-    let urls;
+    const url = document.getElementById('url-input').value.trim();
+    const searchInput = document.getElementById('search-input');
+    if (!url) { setStatus('Enter a URL first.', 'error'); return; }
     try {
-      urls = rawUrls.map(validateScanUrl);
-    } catch (e) {
-      setStatus(`Invalid URL: ${e.message}`, 'error');
-      return;
-    }
+      const parsed = new URL(url);
+      if (!['http:','https:'].includes(parsed.protocol)) throw new Error('URL must start with http:// or https://');
+    } catch (e) { setStatus(`Invalid URL: ${e.message}`, 'error'); return; }
 
-    await scanUrlsSequentially(urls);
+    if (searchInput) searchInput.value = '';
+    setStatus(`Scanning URL with ATS APIs, browser rendering, and OpenAI via ${API_BASE}…`);
+    ['btn-fetch','btn-load','btn-export','btn-clear'].forEach(id => document.getElementById(id).disabled = true);
+
+    const runFallback = async (reason) => {
+      if (reason) setStatus(`${reason}. Using link parser…`);
+      try {
+        const { text, via } = await fetchPage(url);
+        const fallbackJobs = parseFromHtml(text, url).map((job) => ({ ...job, source_url: url }));
+        await showAndSaveJobs(fallbackJobs, url, `Found ${fallbackJobs.length} listings via ${via}.`, fallbackJobs.length ? 'ok' : '');
+      } catch (fallbackError) {
+        setStatus(`Error: ${fallbackError.message}`, 'error');
+      }
+    };
+
+    try {
+      const { jobs, meta } = await extractWithLocalApi(url);
+      await showAndSaveJobs(jobs, url, formatPipelineStatus(jobs.length, meta), jobs.length ? 'ok' : '');
+    } catch (e) {
+      await runFallback(`Server error (${e.message})`);
+    } finally {
+      ['btn-fetch','btn-load','btn-export','btn-clear'].forEach(id => document.getElementById(id).disabled = false);
+      document.getElementById('url-input').value = '';
+      localStorage.removeItem(lastUrlKey());
+    }
   };
 
   window.rescanSource = async function(url) {
     if (!requireUser()) return;
     document.getElementById('url-input').value = url;
-    await scanUrlsSequentially([url]);
+    await scrapeFromUrl();
   };
 
   window.clearSavedJobs = async function() {
