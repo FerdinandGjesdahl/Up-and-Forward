@@ -750,6 +750,20 @@
     throw new Error(errs.join(' | '));
   }
 
+  async function showAndSaveJobs(jobs, url, statusText, okType = '') {
+    const jobsFromSource = jobs.map((job) => ({ ...job, source_url: url }));
+    displayJobs(jobsFromSource);
+
+    try {
+      const saved = await mergeSavedJobs(jobsFromSource);
+      await saveSourceUrl(url);
+      displayJobs(saved.jobs);
+      setStatus(`${statusText} | saved new: ${saved.added}`, okType);
+    } catch (saveError) {
+      setStatus(`${statusText} | Firebase save failed: ${saveError.message}`, 'error');
+    }
+  }
+
   window.scrapeFromUrl = async function() {
     if (!requireUser()) return;
     const url = document.getElementById('url-input').value.trim();
@@ -770,10 +784,7 @@
       try {
         const { text, via } = await fetchPage(url);
         const fallbackJobs = parseFromHtml(text, url).map((job) => ({ ...job, source_url: url }));
-        const saved = await mergeSavedJobs(fallbackJobs);
-        await saveSourceUrl(url);
-        displayJobs(saved.jobs);
-        setStatus(`Found ${fallbackJobs.length} listings via ${via}. Saved ${saved.added} new.`, fallbackJobs.length ? 'ok' : '');
+        await showAndSaveJobs(fallbackJobs, url, `Found ${fallbackJobs.length} listings via ${via}.`, fallbackJobs.length ? 'ok' : '');
       } catch (fallbackError) {
         setStatus(`Error: ${fallbackError.message}`, 'error');
       }
@@ -781,11 +792,7 @@
 
     try {
       const { jobs, meta } = await extractWithLocalApi(url);
-      const jobsFromSource = jobs.map((job) => ({ ...job, source_url: url }));
-      const saved = await mergeSavedJobs(jobsFromSource);
-      await saveSourceUrl(url);
-      displayJobs(saved.jobs);
-      setStatus(`${formatPipelineStatus(jobs.length, meta)} | saved new: ${saved.added}`, jobs.length ? 'ok' : '');
+      await showAndSaveJobs(jobs, url, formatPipelineStatus(jobs.length, meta), jobs.length ? 'ok' : '');
     } catch (e) {
       await runFallback(`Server error (${e.message})`);
     } finally {
