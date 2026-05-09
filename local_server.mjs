@@ -33,7 +33,10 @@ const MAX_PAGE_CHARS = 220_000;
 const MAX_CONTEXT_CHARS = 280_000;
 const MAX_MODEL_SOURCES = 3;
 const MAX_HEURISTIC_JOBS = 250;
-const MAX_FOLLOWUP_LINKS = 6;
+const MAX_FOLLOWUP_LINKS = 20;
+const MAX_AI_LINK_CANDIDATES = 200;
+const MAX_AI_SELECTED_LINKS = 20;
+const MAX_ITERATIVE_PAGES = 24;
 const FETCH_TIMEOUT_MS = 15_000;
 const ATS_FETCH_TIMEOUT_MS = 15_000;
 const PLAYWRIGHT_TIMEOUT_MS = Number(process.env.PLAYWRIGHT_TIMEOUT_MS || 25_000);
@@ -389,14 +392,23 @@ function canonicalUrl(value, baseUrl) {
   }
 }
 
+function canonicalJobUrlKey(value, baseUrl) {
+  const absolute = toAbsoluteUrl(value, baseUrl);
+  if (!absolute) return '';
+  try {
+    const parsed = new URL(absolute);
+    const pathname = parsed.pathname.replace(/\/+$/, '') || '/';
+    return `${parsed.hostname.toLowerCase()}${pathname.toLowerCase()}`;
+  } catch {
+    return absolute.replace(/^https?:\/\//i, '').replace(/[?#].*$/, '').replace(/\/+$/, '').toLowerCase();
+  }
+}
+
 function jobIdFromUrl(value, baseUrl) {
   const absolute = toAbsoluteUrl(value, baseUrl);
   if (!absolute) return '';
   try {
     const parsed = new URL(absolute);
-    const hashMatch = parsed.hash.match(/job-([a-z0-9_-]+)/i);
-    if (hashMatch) return hashMatch[1].toLowerCase();
-
     const lastSegment = parsed.pathname.split('/').filter(Boolean).pop() || '';
     const slugMatch = lastSegment.match(/^(\d{2,})(?:[-_]|$)/);
     return slugMatch ? slugMatch[1].toLowerCase() : '';
@@ -426,6 +438,17 @@ function cleanupExtractedTitle(value, url = '', sourceUrl = '') {
   }
 
   return title;
+}
+
+function isRejectedJobTitle(value) {
+  const title = cleanText(value).toLowerCase();
+  if (!title) return true;
+  if (/^!?\[?\s*image\s*\d*\s*:/i.test(title)) return true;
+  if (/^image\s*\d*\s*:/i.test(title)) return true;
+  if (/\b(logo|banner|thumbnail|cover image|job posting image)\b/i.test(title)) return true;
+  if (/^(sorter|sort|filter|filtrer|sok|søk|jobbtyper|sted|location|locations|category|categories)$/i.test(title)) return true;
+  if (/^.+\s+job posting$/i.test(title) && title.split(/\s+/).length <= 6) return true;
+  return false;
 }
 
 function parseRelativeDate(rawText, referenceDate = new Date()) {
@@ -1011,6 +1034,65 @@ function extractFollowupLinksFromText(text, sourceUrl) {
     .map((entry) => entry.url);
 }
 
+function extractLinkCandidatesFromText(text, sourceUrl) {
+  const body = String(text || '');
+  if (!body) return [];
+
+  const candidates = new Map();
+
+  function addCandidate(rawUrl, label = '', snippet = '') {
+    const url = toAbsoluteUrl(rawUrl, sourceUrl);
+    if (!url) return;
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return;
+    }
+    if (/\.(png|jpe?g|gif|svg|webp|ico|pdf|css|js|map|woff2?|ttf|zip|docx?)$/i.test(parsed.pathname)) return;
+    if (/(\/privacy|\/terms|\/cookies|\/contact|\/about|\/faq|\/news|\/blog)(\/|$)/i.test(url)) return;
+
+    const key = canonicalUrl(url, sourceUrl);
+    const textLabel = cleanText(label || titleFromUrl(url, sourceUrl)).slice(0, 180);
+    if (isRejectedJobTitle(textLabel)) return;
+    const textSnippet = cleanText(snippet || label || '').slice(0, 260);
+    const score = scoreFollowupLink(url, sourceUrl)
+      + (looksLikeJobText(`${textLabel} ${textSnippet}`) ? 18 : 0)
+      + (ATS_HOST_HINTS.some((hint) => parsed.hostname.includes(hint)) ? 30 : 0);
+    if (score < 12) return;
+
+    const existing = candidates.get(key);
+    if (!existing || score > existing.score) {
+      candidates.set(key, {
+        url,
+        text: textLabel,
+        snippet: textSnippet,
+        score
+      });
+    }
+  }
+
+  const markdownLinkRegex = /\[([^\]]{1,240})\]\((https?:\/\/[^\s)]+|\/[^\s)]+)\)/gi;
+  for (const match of body.matchAll(markdownLinkRegex)) {
+    if (match.index > 0 && body[match.index - 1] === '!') continue;
+    addCandidate(match[2], match[1], match[0]);
+  }
+
+  const anchorHrefRegex = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  for (const match of body.matchAll(anchorHrefRegex)) {
+    addCandidate(match[1], cleanText(match[2]), match[0]);
+  }
+
+  const bareUrlRegex = /https?:\/\/[^\s)"'<>]+/gi;
+  for (const match of body.matchAll(bareUrlRegex)) {
+    addCandidate(match[0], titleFromUrl(match[0], sourceUrl), match[0]);
+  }
+
+  return [...candidates.values()]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, MAX_AI_LINK_CANDIDATES);
+}
+
 function isLikelyLocaleSegment(segment) {
   return /^[a-z]{2}(?:-[a-z]{2})?$/i.test(segment);
 }
@@ -1390,6 +1472,7 @@ function mergeAndNormalizeJobs(rawJobs, sourceUrl) {
     if (/^\s*[0-9a-f][0-9a-f\s-]{20,}\s*$/i.test(title)) score -= 80;
     if (/\.(js|css|png|jpe?g|svg|webp|woff2?|ttf)$/i.test(lower)) score -= 120;
     if (/^(sorter|sok|jobbtyper|sted)$/i.test(lower)) score -= 100;
+    if (/\b(lagt ut|frist|deadline|heltid|deltid|fulltid|snarest)\b/i.test(title)) score -= 45;
     return score;
   }
 
@@ -1412,6 +1495,7 @@ function mergeAndNormalizeJobs(rawJobs, sourceUrl) {
     const titleRaw = raw.title || raw.role || raw.position || raw.name || '';
     const title = cleanupExtractedTitle(titleRaw, url, sourceUrl) || titleFromUrl(url, sourceUrl);
     if (!title || title.length < 3) continue;
+    if (isRejectedJobTitle(title)) continue;
     const titleLower = title.toLowerCase();
     if (/^(title:|url source:|markdown content:)/.test(titleLower)) continue;
     if (/https?:\/\//.test(titleLower)) continue;
@@ -1434,14 +1518,16 @@ function mergeAndNormalizeJobs(rawJobs, sourceUrl) {
     );
 
     const urlObj = new URL(url);
-    const normalizedUrlKey = `${urlObj.origin}${urlObj.pathname}`;
-    const sourceCanonical = canonicalUrl(sourceUrl, sourceUrl);
-    const rawId = cleanText(raw.id || raw.job_id || raw.jobId || raw.requisitionId || raw.reqId || '') || jobIdFromUrl(url, sourceUrl);
+    const isExternalNonAts = urlObj.hostname !== host && !ATS_HOST_HINTS.some((hint) => urlObj.hostname.includes(hint));
+    if (isExternalNonAts && company === host) continue;
+
+    const normalizedUrlKey = canonicalJobUrlKey(url, sourceUrl);
+    const explicitRawId = String(raw.id || raw.job_id || raw.jobId || raw.requisitionId || raw.reqId || '').trim();
+    const rawId = /^ai[_\s-]/i.test(explicitRawId) ? '' : cleanText(explicitRawId);
     const urlJobId = jobIdFromUrl(url, sourceUrl);
-    const dedupeKey = urlJobId
-      ? `${new URL(sourceUrl).origin}:job:${urlJobId}`.toLowerCase()
-      : rawId && normalizedUrlKey.toLowerCase() === sourceCanonical
-      ? `${normalizedUrlKey}#${rawId}`.toLowerCase()
+    const stableJobId = urlJobId || rawId;
+    const dedupeKey = stableJobId
+      ? `${new URL(sourceUrl).hostname}:job:${stableJobId}`.toLowerCase()
       : normalizedUrlKey.toLowerCase();
     const candidate = {
       id: rawId || `ai_${Math.random().toString(16).slice(2, 12)}`,
@@ -1899,6 +1985,170 @@ async function callOpenAiExtraction(sourceUrl, contextText) {
   return [];
 }
 
+async function callOpenAiLinkSelection(sourceUrl, pageText, linkCandidates) {
+  if (!OPENAI_API_KEY || !linkCandidates.length) {
+    return linkCandidates.slice(0, MAX_AI_SELECTED_LINKS).map((link) => link.url);
+  }
+
+  const links = linkCandidates.slice(0, MAX_AI_LINK_CANDIDATES).map((link, index) => ({
+    index,
+    url: link.url,
+    text: link.text,
+    snippet: link.snippet,
+    score: link.score
+  }));
+
+  const prompt = [
+    'You are choosing which links to fetch for a universal job scraper.',
+    'Return JSON only. No markdown, no explanation.',
+    'Schema: {"links":[{"url":"","reason":""}]}',
+    'Choose links that are likely to contain job listings, career listings, internship listings, or actual job detail pages.',
+    'Prefer pages with many listings over generic landing pages.',
+    'Reject privacy, terms, news, blog, social media, login, unrelated company pages, images, PDFs, and assets.',
+    `Return at most ${MAX_AI_SELECTED_LINKS} links.`,
+    'Use only URLs from the provided candidates.'
+  ].join('\n');
+
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      temperature: 0,
+      max_output_tokens: 1400,
+      input: [
+        { role: 'system', content: [{ type: 'input_text', text: prompt }] },
+        {
+          role: 'user',
+          content: [{
+            type: 'input_text',
+            text: [
+              `Source URL: ${sourceUrl}`,
+              '',
+              'Initial page focused text:',
+              extractFocusedText(pageText).slice(0, 40_000),
+              '',
+              'Candidate links:',
+              JSON.stringify(links, null, 2)
+            ].join('\n')
+          }]
+        }
+      ]
+    })
+  });
+
+  const rawBody = await response.text();
+  let payload = {};
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    if (!response.ok) throw new Error(`OpenAI link selection HTTP ${response.status}: ${rawBody.slice(0, 240)}`);
+    throw new Error('OpenAI link selection returned invalid JSON payload');
+  }
+
+  if (!response.ok) {
+    const apiMessage = payload?.error?.message || rawBody.slice(0, 240);
+    throw new Error(`OpenAI link selection HTTP ${response.status}: ${apiMessage}`);
+  }
+
+  const parsed = parseJsonFromText(readOutputText(payload));
+  const selected = Array.isArray(parsed?.links) ? parsed.links : [];
+  const allowed = new Set(linkCandidates.map((link) => link.url));
+  return selected
+    .map((link) => String(link?.url || '').trim())
+    .filter((url) => allowed.has(url))
+    .slice(0, MAX_AI_SELECTED_LINKS);
+}
+
+function buildIterativeExtractionContext(sourceUrl, pages, heuristicJobs) {
+  const nowDate = new Date().toISOString().slice(0, 10);
+  const parts = [
+    `Source URL: ${sourceUrl}`,
+    `Extraction date: ${nowDate}`,
+    'Task: extract every real job posting visible in the provided pages.'
+  ];
+
+  if (heuristicJobs.length) {
+    parts.push('\nHeuristic candidates. These are hints only; correct mistakes and remove false positives:');
+    parts.push(JSON.stringify(heuristicJobs.slice(0, 120).map((job) => ({
+      company: job.company,
+      title: job.title,
+      location: job.location,
+      posted_date: job.posted_date,
+      url: job.url
+    })), null, 2));
+  }
+
+  pages.slice(0, MAX_ITERATIVE_PAGES).forEach((page, index) => {
+    const text = extractFocusedText(page.text).slice(0, index === 0 ? 70_000 : 45_000);
+    parts.push(`\n===== Page ${index + 1}: ${page.url} (${page.via}, score ${page.score}) =====`);
+    parts.push(text);
+  });
+
+  return parts.join('\n').slice(0, MAX_CONTEXT_CHARS);
+}
+
+async function extractJobsFromIterativeContext(sourceUrl, pages, heuristicJobs) {
+  if (!OPENAI_API_KEY) return [];
+
+  const prompt = [
+    'You are a precise job extraction engine for arbitrary career pages.',
+    'Return JSON only. No markdown, no explanation.',
+    'Schema:',
+    '{"jobs":[{"company":"","title":"","location":"","posted_date":"","url":"","snippet":""}]}',
+    'Rules:',
+    '- Extract all actual open job postings, internships, graduate roles, trainee roles, and part-time/full-time roles.',
+    '- Exclude navigation links, categories, filters, employer profiles, event pages, articles, privacy/terms, and generic career pages that are not individual jobs.',
+    '- If a page lists job cards, each card is a separate job.',
+    '- company is the employer/organization for that posting. If not explicit, infer from the page/domain.',
+    '- title must be the actual role title, not a filename, image label, card label, or generic "job posting" text.',
+    '- posted_date must be YYYY-MM-DD when available. Convert relative dates using the extraction date. Leave empty if not present.',
+    '- url must be the best direct job/application/detail URL. Use absolute URLs.',
+    '- snippet should be short evidence from the source.',
+    '- Do not duplicate the same job; keep the best title and direct URL.'
+  ].join('\n');
+
+  const context = buildIterativeExtractionContext(sourceUrl, pages, heuristicJobs);
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      temperature: 0,
+      max_output_tokens: 6000,
+      input: [
+        { role: 'system', content: [{ type: 'input_text', text: prompt }] },
+        { role: 'user', content: [{ type: 'input_text', text: context }] }
+      ]
+    })
+  });
+
+  const rawBody = await response.text();
+  let payload = {};
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    if (!response.ok) throw new Error(`OpenAI extraction HTTP ${response.status}: ${rawBody.slice(0, 240)}`);
+    throw new Error('OpenAI extraction returned invalid JSON payload');
+  }
+
+  if (!response.ok) {
+    const apiMessage = payload?.error?.message || rawBody.slice(0, 240);
+    throw new Error(`OpenAI extraction HTTP ${response.status}: ${apiMessage}`);
+  }
+
+  const parsed = parseJsonFromText(readOutputText(payload));
+  if (Array.isArray(parsed)) return parsed;
+  if (Array.isArray(parsed?.jobs)) return parsed.jobs;
+  return [];
+}
+
 async function extractJobsWithOpenAi(sourceUrl, sources, heuristicJobs) {
   if (!OPENAI_API_KEY) return [];
 
@@ -1914,6 +2164,184 @@ async function extractJobsWithOpenAi(sourceUrl, sources, heuristicJobs) {
   const secondaryRaw = await callOpenAiExtraction(sourceUrl, secondaryContext);
   merged = mergeAndNormalizeJobs([...merged, ...secondaryRaw], sourceUrl);
   return merged;
+}
+
+function crawlUrlKey(url, sourceUrl) {
+  const absolute = toAbsoluteUrl(url, sourceUrl);
+  if (!absolute) return '';
+  try {
+    const parsed = new URL(absolute);
+    parsed.hash = '';
+    parsed.searchParams.sort();
+    return parsed.href.toLowerCase();
+  } catch {
+    return canonicalUrl(absolute, sourceUrl);
+  }
+}
+
+function sameSiteOrKnownAts(url, sourceUrl) {
+  try {
+    const parsed = new URL(url);
+    const source = new URL(sourceUrl);
+    if (parsed.hostname === source.hostname) return true;
+    if (parsed.hostname.endsWith(`.${source.hostname}`)) return true;
+    if (source.hostname.endsWith(`.${parsed.hostname}`)) return true;
+    return ATS_HOST_HINTS.some((hint) => parsed.hostname.includes(hint));
+  } catch {
+    return false;
+  }
+}
+
+function shouldCrawlLink(candidate, sourceUrl) {
+  if (!candidate?.url) return false;
+  let parsed;
+  try {
+    parsed = new URL(candidate.url);
+  } catch {
+    return false;
+  }
+
+  const lower = candidate.url.toLowerCase();
+  const pathLower = parsed.pathname.toLowerCase();
+  if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+  if (/\.(png|jpe?g|gif|svg|webp|ico|pdf|css|js|map|woff2?|ttf|zip|docx?|xlsx?)$/i.test(pathLower)) return false;
+  if (/(\/privacy|\/terms|\/cookies|\/contact|\/about|\/faq|\/news|\/blog|\/login|\/signin|\/signup)(\/|$)/i.test(lower)) return false;
+  if (!sameSiteOrKnownAts(candidate.url, sourceUrl)) return false;
+
+  const signal = `${candidate.text || ''} ${candidate.snippet || ''} ${pathLower}`;
+  return candidate.score >= 18 || looksLikeJobUrl(candidate.url, sourceUrl) || looksLikeJobText(signal);
+}
+
+function addCrawlCandidate(candidateMap, candidate, sourceUrl, discoveredFrom = '') {
+  if (!shouldCrawlLink(candidate, sourceUrl)) return;
+  const key = crawlUrlKey(candidate.url, sourceUrl);
+  if (!key) return;
+
+  const existing = candidateMap.get(key);
+  const next = {
+    ...candidate,
+    discovered_from: discoveredFrom || candidate.discovered_from || sourceUrl
+  };
+
+  if (!existing || next.score > existing.score) {
+    candidateMap.set(key, next);
+  }
+}
+
+async function fetchCrawlerPage(url) {
+  const fetched = await fetchPageSources(url);
+  const rawJobs = [];
+  const links = new Map();
+
+  for (const candidate of fetched.candidates.slice(0, MAX_MODEL_SOURCES)) {
+    rawJobs.push(...extractHeuristicJobsFromText(candidate.text, url));
+    for (const link of extractLinkCandidatesFromText(candidate.text, url)) {
+      const key = crawlUrlKey(link.url, url);
+      if (!key) continue;
+      const existing = links.get(key);
+      if (!existing || link.score > existing.score) links.set(key, link);
+    }
+  }
+
+  return {
+    page: {
+      url,
+      via: fetched.primary.via,
+      score: fetched.primary.score,
+      text: fetched.primary.text
+    },
+    rawJobs,
+    links: [...links.values()],
+    sourceCandidates: fetched.candidates,
+    errors: fetched.errors
+  };
+}
+
+async function callOpenAiCrawlPlanner(sourceUrl, pages, heuristicJobs, linkCandidates, visitedKeys) {
+  const usableCandidates = linkCandidates
+    .filter((candidate) => !visitedKeys.has(crawlUrlKey(candidate.url, sourceUrl)))
+    .slice(0, MAX_AI_LINK_CANDIDATES)
+    .map((candidate, index) => ({
+      index,
+      url: candidate.url,
+      text: candidate.text,
+      snippet: candidate.snippet,
+      score: candidate.score,
+      discovered_from: candidate.discovered_from
+    }));
+
+  if (!usableCandidates.length) return [];
+
+  if (!OPENAI_API_KEY) {
+    return usableCandidates.slice(0, MAX_AI_SELECTED_LINKS).map((candidate) => candidate.url);
+  }
+
+  const prompt = [
+    'You are the link-following planner for a universal job scraper.',
+    'Return JSON only. No markdown, no explanation.',
+    'Schema: {"links":[{"url":"","reason":""}]}',
+    'Goal: choose the next pages that most likely reveal actual job postings or job detail cards.',
+    'Prefer direct job detail URLs and listing pages with multiple jobs.',
+    'Follow relevant sub-job links from the same site or known ATS hosts.',
+    'Reject navigation, filters, employer profiles without jobs, events, articles, privacy/terms, login, PDFs, images, and social links.',
+    `Return at most ${MAX_AI_SELECTED_LINKS} URLs. Use only URLs from candidates.`
+  ].join('\n');
+
+  const state = {
+    source_url: sourceUrl,
+    fetched_pages: pages.slice(-6).map((page) => ({
+      url: page.url,
+      via: page.via,
+      score: page.score,
+      focused_text: extractFocusedText(page.text).slice(0, 10_000)
+    })),
+    current_job_hints: heuristicJobs.slice(0, 80).map((job) => ({
+      company: job.company,
+      title: job.title,
+      url: job.url,
+      posted_date: job.posted_date
+    })),
+    candidates: usableCandidates
+  };
+
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      temperature: 0,
+      max_output_tokens: 1800,
+      input: [
+        { role: 'system', content: [{ type: 'input_text', text: prompt }] },
+        { role: 'user', content: [{ type: 'input_text', text: JSON.stringify(state, null, 2) }] }
+      ]
+    })
+  });
+
+  const rawBody = await response.text();
+  let payload = {};
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    if (!response.ok) throw new Error(`OpenAI crawl planner HTTP ${response.status}: ${rawBody.slice(0, 240)}`);
+    throw new Error('OpenAI crawl planner returned invalid JSON payload');
+  }
+
+  if (!response.ok) {
+    const apiMessage = payload?.error?.message || rawBody.slice(0, 240);
+    throw new Error(`OpenAI crawl planner HTTP ${response.status}: ${apiMessage}`);
+  }
+
+  const parsed = parseJsonFromText(readOutputText(payload));
+  const selected = Array.isArray(parsed?.links) ? parsed.links : [];
+  const allowed = new Set(usableCandidates.map((candidate) => candidate.url));
+  return selected
+    .map((link) => String(link?.url || '').trim())
+    .filter((url) => allowed.has(url))
+    .slice(0, MAX_AI_SELECTED_LINKS);
 }
 
 function validateSourceUrl(sourceUrl) {
@@ -1934,87 +2362,94 @@ async function extractJobsForUrl(sourceUrl) {
   const ats = await fetchAtsJobs(parsedUrl.href);
   const atsJobs = mergeAndNormalizeJobs(ats.jobs, parsedUrl.href);
 
-  const fetched = await fetchPageSources(parsedUrl.href);
-  const sourceCandidates = fetched.candidates;
-
+  const pages = [];
+  const sourceCandidates = [];
+  const sourceErrors = [];
   const heuristicRaw = [];
-  for (const candidate of sourceCandidates.slice(0, MAX_MODEL_SOURCES)) {
-    heuristicRaw.push(...extractHeuristicJobsFromText(candidate.text, parsedUrl.href));
+  const candidateMap = new Map();
+  const visited = new Set();
+  const queued = new Set();
+  const followedLinks = [];
+  const plannerWarnings = [];
+  const crawlQueue = [parsedUrl.href];
+  queued.add(crawlUrlKey(parsedUrl.href, parsedUrl.href));
+
+  while (crawlQueue.length && pages.length < MAX_ITERATIVE_PAGES) {
+    const batchSize = pages.length ? Math.min(4, crawlQueue.length, MAX_ITERATIVE_PAGES - pages.length) : 1;
+    const batch = crawlQueue.splice(0, batchSize);
+    const results = await Promise.allSettled(batch.map((url) => fetchCrawlerPage(url)));
+
+    for (let i = 0; i < results.length; i += 1) {
+      const url = batch[i];
+      const key = crawlUrlKey(url, parsedUrl.href);
+      visited.add(key);
+
+      const result = results[i];
+      if (result.status === 'rejected') {
+        sourceErrors.push(`${url}: ${result.reason?.message || String(result.reason)}`);
+        continue;
+      }
+
+      pages.push(result.value.page);
+      heuristicRaw.push(...result.value.rawJobs);
+      sourceCandidates.push(...result.value.sourceCandidates);
+      sourceErrors.push(...result.value.errors);
+
+      for (const link of result.value.links) {
+        addCrawlCandidate(candidateMap, link, parsedUrl.href, url);
+      }
+    }
+
+    if (pages.length >= MAX_ITERATIVE_PAGES) break;
+
+    const heuristicJobsForPlanning = mergeAndNormalizeJobs([...atsJobs, ...heuristicRaw], parsedUrl.href);
+    const candidates = [...candidateMap.values()]
+      .filter((candidate) => {
+        const key = crawlUrlKey(candidate.url, parsedUrl.href);
+        return key && !visited.has(key) && !queued.has(key);
+      })
+      .sort((a, b) => b.score - a.score);
+
+    if (!candidates.length) continue;
+
+    let selectedLinks = [];
+    try {
+      selectedLinks = await callOpenAiCrawlPlanner(parsedUrl.href, pages, heuristicJobsForPlanning, candidates, visited);
+    } catch (error) {
+      plannerWarnings.push(error.message);
+      selectedLinks = candidates.slice(0, MAX_AI_SELECTED_LINKS).map((candidate) => candidate.url);
+    }
+
+    for (const link of selectedLinks) {
+      const key = crawlUrlKey(link, parsedUrl.href);
+      if (!key || visited.has(key) || queued.has(key)) continue;
+      crawlQueue.push(link);
+      queued.add(key);
+      followedLinks.push(link);
+      if (pages.length + crawlQueue.length >= MAX_ITERATIVE_PAGES) break;
+    }
   }
+
   const heuristicJobs = mergeAndNormalizeJobs([...atsJobs, ...heuristicRaw], parsedUrl.href);
 
+  let warning = plannerWarnings.join(' | ');
   let openAiJobs = [];
-  let warning = '';
   try {
-    openAiJobs = await extractJobsWithOpenAi(parsedUrl.href, sourceCandidates, heuristicJobs);
+    const aiRaw = await extractJobsFromIterativeContext(parsedUrl.href, pages, heuristicJobs);
+    openAiJobs = mergeAndNormalizeJobs(aiRaw, parsedUrl.href);
   } catch (error) {
-    warning = error.message;
-  }
-
-  let jobs = mergeAndNormalizeJobs([...atsJobs, ...heuristicJobs, ...openAiJobs], parsedUrl.href);
-
-  let followupLinks = [];
-  let followupJobs = [];
-  let followupScanned = 0;
-
-  if (jobs.length < 4) {
-    const discovered = [];
-    for (const candidate of sourceCandidates.slice(0, MAX_MODEL_SOURCES)) {
-      discovered.push(...extractFollowupLinksFromText(candidate.text, parsedUrl.href));
-    }
-
-    followupLinks = [...new Set(discovered)].slice(0, MAX_FOLLOWUP_LINKS);
-
-    if (followupLinks.length) {
-      const followupResults = await Promise.allSettled(
-        followupLinks.map(async (link) => {
-          const childFetched = await fetchPageSources(link);
-          const raw = [];
-          for (const childSource of childFetched.candidates.slice(0, 2)) {
-            raw.push(...extractHeuristicJobsFromText(childSource.text, link));
-          }
-          return {
-            jobs: raw,
-            topSource: childFetched.candidates[0]
-          };
-        })
-      );
-
-      const followupRaw = [];
-      const followupSources = [];
-      for (const result of followupResults) {
-        if (result.status !== 'fulfilled') continue;
-        followupScanned += 1;
-        followupRaw.push(...result.value.jobs);
-        if (result.value.topSource) {
-          followupSources.push({
-            via: `followup-${result.value.topSource.via}`,
-            text: result.value.topSource.text,
-            score: result.value.topSource.score
-          });
-        }
-      }
-
-      followupJobs = mergeAndNormalizeJobs(followupRaw, parsedUrl.href);
-      jobs = mergeAndNormalizeJobs([...atsJobs, ...jobs, ...followupJobs], parsedUrl.href);
-
-      if (OPENAI_API_KEY && jobs.length < 4 && followupSources.length) {
-        try {
-          const followupAi = await extractJobsWithOpenAi(
-            parsedUrl.href,
-            followupSources,
-            [...heuristicJobs, ...followupJobs]
-          );
-          openAiJobs = mergeAndNormalizeJobs([...openAiJobs, ...followupAi], parsedUrl.href);
-          jobs = mergeAndNormalizeJobs([...atsJobs, ...jobs, ...openAiJobs], parsedUrl.href);
-        } catch (error) {
-          warning = warning ? `${warning} | ${error.message}` : error.message;
-        }
-      }
+    warning = warning ? `${warning} | ${error.message}` : error.message;
+    try {
+      openAiJobs = await extractJobsWithOpenAi(parsedUrl.href, sourceCandidates, heuristicJobs);
+    } catch (fallbackError) {
+      warning = `${warning} | ${fallbackError.message}`;
     }
   }
 
-  const totalHeuristicJobs = mergeAndNormalizeJobs([...atsJobs, ...heuristicJobs, ...followupJobs], parsedUrl.href);
+  const jobs = mergeAndNormalizeJobs([...atsJobs, ...heuristicJobs, ...openAiJobs], parsedUrl.href);
+  const linkCandidates = [...candidateMap.values()]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 20);
 
   return {
     jobs,
@@ -2023,13 +2458,14 @@ async function extractJobsForUrl(sourceUrl) {
       ats_count: atsJobs.length,
       ats_sources: ats.sources,
       ats_errors: ats.errors,
-      heuristic_count: totalHeuristicJobs.length,
+      heuristic_count: heuristicJobs.length,
       openai_count: openAiJobs.length,
-      via: fetched.primary.via,
-      followup_scanned: followupScanned,
-      followup_links: followupLinks,
-      source_candidates: sourceCandidates.map((item) => ({ via: item.via, score: item.score })),
-      source_errors: fetched.errors,
+      via: pages[0]?.via || '',
+      followup_scanned: pages.length - 1,
+      followup_links: followedLinks,
+      link_candidates: linkCandidates.slice(0, 20).map((item) => ({ url: item.url, text: item.text, score: item.score })),
+      source_candidates: sourceCandidates.map((item) => ({ via: item.via, score: item.score })).slice(0, 60),
+      source_errors: sourceErrors,
       model: OPENAI_MODEL,
       source_url: parsedUrl.href,
       warning: warning || (OPENAI_API_KEY ? '' : 'OPENAI_API_KEY is not set. Returned heuristic-only extraction.')
