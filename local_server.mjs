@@ -33,7 +33,7 @@ const MAX_PAGE_CHARS = 220_000;
 const MAX_CONTEXT_CHARS = 280_000;
 const MAX_MODEL_SOURCES = 3;
 const MAX_HEURISTIC_JOBS = 250;
-const MAX_FOLLOWUP_LINKS = 12;
+const MAX_FOLLOWUP_LINKS = 6;
 const FETCH_TIMEOUT_MS = 15_000;
 const ATS_FETCH_TIMEOUT_MS = 15_000;
 const PLAYWRIGHT_TIMEOUT_MS = Number(process.env.PLAYWRIGHT_TIMEOUT_MS || 25_000);
@@ -409,15 +409,12 @@ function cleanupExtractedTitle(value, url = '', sourceUrl = '') {
   let title = cleanText(value);
   if (!title) return '';
 
-  title = title.replace(/^!?\[?\s*/, '').replace(/\]$/, '');
   title = title.replace(/^\d{2,}\s+/, '');
   title = title.replace(/\s+/g, ' ').trim();
 
   if (title.includes('•')) {
     title = title.split('•')[0].trim();
   }
-
-  title = title.split(/\b(Lagt ut for|Posted|Publisert|Frist:|Deadline:)\b/i)[0].trim();
 
   const slugTitle = titleFromUrl(url, sourceUrl).replace(/^\d{2,}\s+/, '').trim();
   if (slugTitle && (
@@ -429,30 +426,6 @@ function cleanupExtractedTitle(value, url = '', sourceUrl = '') {
   }
 
   return title;
-}
-
-function isRejectedJobTitle(value) {
-  const title = cleanText(value).toLowerCase();
-  if (!title) return true;
-  if (/^!?\[?\s*image\s*\d*\s*:/i.test(title)) return true;
-  if (/^image\s*\d*\s*:/i.test(title)) return true;
-  if (/\b(logo|banner|thumbnail|cover image|job posting image)\b/i.test(title)) return true;
-  if (/^.+\s+job posting$/i.test(title) && title.split(/\s+/).length <= 5) return true;
-  return false;
-}
-
-function needsFollowupScan(jobs) {
-  if (!jobs.length) return true;
-  if (jobs.length < 8) return true;
-
-  const weakCount = jobs.filter((job) => {
-    if (isRejectedJobTitle(job.title)) return true;
-    if (!job.company || job.company === job.bank && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(job.company)) return true;
-    if (!job.url || /#job-/i.test(job.url)) return true;
-    return false;
-  }).length;
-
-  return weakCount / jobs.length > 0.25;
 }
 
 function parseRelativeDate(rawText, referenceDate = new Date()) {
@@ -841,11 +814,9 @@ function extractJobsFromMarkdownLinks(text, sourceUrl) {
   const linkRegex = /\[([^\]]{1,260})\]\((https?:\/\/[^\s)]+|\/[^\s)]+)\)/gi;
 
   for (const match of String(text || '').matchAll(linkRegex)) {
-    if (match.index > 0 && String(text || '')[match.index - 1] === '!') continue;
     const title = cleanText(match[1]);
     const url = toAbsoluteUrl(match[2], sourceUrl);
     if (!title || !url) continue;
-    if (isRejectedJobTitle(title)) continue;
     if (!looksLikeJobUrl(url, sourceUrl) && !looksLikeJobText(title)) continue;
 
     jobs.push({
@@ -1441,7 +1412,6 @@ function mergeAndNormalizeJobs(rawJobs, sourceUrl) {
     const titleRaw = raw.title || raw.role || raw.position || raw.name || '';
     const title = cleanupExtractedTitle(titleRaw, url, sourceUrl) || titleFromUrl(url, sourceUrl);
     if (!title || title.length < 3) continue;
-    if (isRejectedJobTitle(title)) continue;
     const titleLower = title.toLowerCase();
     if (/^(title:|url source:|markdown content:)/.test(titleLower)) continue;
     if (/https?:\/\//.test(titleLower)) continue;
@@ -1464,17 +1434,8 @@ function mergeAndNormalizeJobs(rawJobs, sourceUrl) {
     );
 
     const urlObj = new URL(url);
-    const normalizedUrlKey = `${urlObj.hostname}${urlObj.pathname}`;
-    const sourceUrlObj = new URL(sourceUrl);
-    const sourceCanonical = `${sourceUrlObj.hostname}${sourceUrlObj.pathname}`.toLowerCase();
-    const sourceHost = new URL(sourceUrl).hostname;
-    const isExternalWeakLink = urlObj.hostname !== sourceHost
-      && company === host
-      && !location
-      && !postedDate
-      && !ATS_HOST_HINTS.some((hint) => urlObj.hostname.includes(hint));
-    if (isExternalWeakLink) continue;
-
+    const normalizedUrlKey = `${urlObj.origin}${urlObj.pathname}`;
+    const sourceCanonical = canonicalUrl(sourceUrl, sourceUrl);
     const rawId = cleanText(raw.id || raw.job_id || raw.jobId || raw.requisitionId || raw.reqId || '') || jobIdFromUrl(url, sourceUrl);
     const urlJobId = jobIdFromUrl(url, sourceUrl);
     const dedupeKey = urlJobId
@@ -1887,9 +1848,6 @@ async function callOpenAiExtraction(sourceUrl, contextText) {
     '{"jobs":[{"company":"","title":"","location":"","posted_date":"","url":"","snippet":""}]}',
     'Rules:',
     '- Keep only actual job listings (exclude nav links, filters, categories, policy links).',
-    '- Never return image alt text, image captions, logos, banners, or strings like "Image 1: Company job posting" as jobs.',
-    '- The title must be the actual role title, not a filename, image label, card label, or generic "job posting" text.',
-    '- The company must be the employer shown for that role when available, not just the website hostname.',
     '- Convert posted_date to YYYY-MM-DD when possible, otherwise empty string.',
     '- Convert relative dates (e.g., "2 days ago", "lagt ut for 3 dager siden") using the extraction date.',
     '- Use absolute URLs if possible.',
@@ -1999,7 +1957,7 @@ async function extractJobsForUrl(sourceUrl) {
   let followupJobs = [];
   let followupScanned = 0;
 
-  if (needsFollowupScan(jobs)) {
+  if (jobs.length < 4) {
     const discovered = [];
     for (const candidate of sourceCandidates.slice(0, MAX_MODEL_SOURCES)) {
       discovered.push(...extractFollowupLinksFromText(candidate.text, parsedUrl.href));
@@ -2040,7 +1998,7 @@ async function extractJobsForUrl(sourceUrl) {
       followupJobs = mergeAndNormalizeJobs(followupRaw, parsedUrl.href);
       jobs = mergeAndNormalizeJobs([...atsJobs, ...jobs, ...followupJobs], parsedUrl.href);
 
-      if (OPENAI_API_KEY && followupSources.length) {
+      if (OPENAI_API_KEY && jobs.length < 4 && followupSources.length) {
         try {
           const followupAi = await extractJobsWithOpenAi(
             parsedUrl.href,
