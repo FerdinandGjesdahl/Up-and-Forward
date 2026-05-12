@@ -2,16 +2,16 @@
   "name": "Up and Forward",
   "short_name": "UpForward",
   "description": "Live job alerts for finance, consulting, and early-career roles.",
-  "start_url": "/dashboard.html",
-  "scope": "/",
+  "start_url": "dashboard.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0a0c10",
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "/icons/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "logo.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

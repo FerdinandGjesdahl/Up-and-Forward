@@ -1,10 +1,10 @@
-const CACHE_NAME = 'upforward-shell-v1';
+const CACHE_NAME = 'upforward-shell-v2';
 const SHELL_URLS = [
-  '/',
-  '/dashboard.html',
-  '/scraper/jobs.html',
-  '/manifest.webmanifest',
-  '/icons/icon.svg'
+  './',
+  './dashboard.html',
+  './scraper/jobs.html',
+  './manifest.webmanifest',
+  './logo.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -37,7 +37,7 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match('/dashboard.html')))
+      .catch(() => caches.match(request).then((cached) => cached || caches.match('./dashboard.html')))
   );
 });
 
@@ -52,12 +52,12 @@ self.addEventListener('push', (event) => {
   const title = payload.title || 'New job posted';
   const options = {
     body: payload.body || 'A new listing is available.',
-    icon: '/icons/icon.svg',
-    badge: '/icons/icon.svg',
+    icon: './logo.png',
+    badge: './logo.png',
     tag: payload.tag || 'upforward-job',
     renotify: true,
     data: {
-      url: payload.url || '/dashboard.html'
+      url: payload.url || './dashboard.html'
     }
   };
 
@@ -66,7 +66,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = new URL(event.notification.data?.url || '/dashboard.html', self.location.origin).href;
+  const targetUrl = new URL(event.notification.data?.url || './dashboard.html', self.location.href).href;
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true })

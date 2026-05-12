@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <meta http-equiv="X-Frame-Options" content="DENY" />
+  <link rel="icon" href="logo.png" type="image/png" />
+  <link rel="apple-touch-icon" href="logo.png" />
   <title>Up and Forward — Sign in</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -36,7 +38,8 @@
       padding: 16px 40px;
       border-bottom: 1px solid var(--border);
     }
-    .nav-logo { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.5px; text-decoration: none; color: var(--text); }
+    .nav-logo { align-items: center; display: inline-flex; gap: 10px; font-size: 1.2rem; font-weight: 700; letter-spacing: -0.5px; text-decoration: none; color: var(--text); }
+    .nav-logo img { width: 30px; height: 30px; border-radius: 8px; object-fit: cover; }
     .nav-logo span { color: var(--accent-light); }
 
     main {
@@ -269,7 +272,7 @@
 </div>
 
 <nav>
-  <a href="index.html" class="nav-logo">Up and <span>Forward</span></a>
+  <a href="index.html" class="nav-logo"><img src="logo.png" alt="" />Up and <span>Forward</span></a>
 </nav>
 
 <main>

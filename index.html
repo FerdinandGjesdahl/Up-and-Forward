@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#080b10" />
+  <link rel="icon" href="logo.png" type="image/png" />
+  <link rel="apple-touch-icon" href="logo.png" />
   <title>Up and Forward - Be first to the roles that matter</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -62,23 +64,11 @@
     }
 
     .brand-mark {
-      background: linear-gradient(135deg, var(--blue), var(--green));
       border-radius: 9px;
       box-shadow: 0 10px 28px rgba(59,130,246,0.32);
-      height: 28px;
-      position: relative;
-      width: 28px;
-    }
-
-    .brand-mark::after {
-      background: #fff;
-      border-radius: 999px;
-      content: "";
-      height: 8px;
-      left: 10px;
-      position: absolute;
-      top: 10px;
-      width: 8px;
+      height: 30px;
+      object-fit: cover;
+      width: 30px;
     }
 
     .brand span { color: var(--blue2); }
@@ -490,7 +480,7 @@
 </head>
 <body>
   <nav>
-    <a class="brand" href="index.html"><span class="brand-mark"></span>Up and <span>Forward</span></a>
+    <a class="brand" href="index.html"><img class="brand-mark" src="logo.png" alt="" />Up and <span>Forward</span></a>
     <div class="nav-links">
       <a href="#how">How it works</a>
       <a href="#advantage">Why early matters</a>

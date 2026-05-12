@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="logo.png" type="image/png" />
+  <link rel="apple-touch-icon" href="logo.png" />
   <title>Up and Forward — Companies & Internship Links</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -34,7 +36,8 @@
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
     }
-    .nav-logo { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.5px; text-decoration: none; color: var(--text); }
+    .nav-logo { align-items: center; display: inline-flex; gap: 10px; font-size: 1.2rem; font-weight: 700; letter-spacing: -0.5px; text-decoration: none; color: var(--text); }
+    .nav-logo img { width: 30px; height: 30px; border-radius: 8px; object-fit: cover; }
     .nav-logo span { color: var(--accent-light); }
     .nav-links { display: flex; gap: 28px; align-items: center; }
     .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
@@ -120,7 +123,7 @@
 <body>
 
 <nav>
-  <a class="nav-logo" href="index.html">Up and <span>Forward</span></a>
+  <a class="nav-logo" href="index.html"><img src="logo.png" alt="" />Up and <span>Forward</span></a>
   <div class="nav-links">
     <a href="index.html#how">How it works</a>
     <a href="index.html#pricing">Pricing</a>

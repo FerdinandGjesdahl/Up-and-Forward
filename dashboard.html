@@ -8,8 +8,9 @@
   <meta name="theme-color" content="#2563eb" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="UpForward" />
-  <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="logo.png" type="image/png" />
+  <link rel="apple-touch-icon" href="logo.png" />
   <title>Up and Forward — Dashboard</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,7 +44,8 @@
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 32px; height: 60px;
     }
-    .nav-logo { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.5px; color: var(--text); text-decoration: none; }
+    .nav-logo { align-items: center; display: inline-flex; gap: 10px; font-size: 1.1rem; font-weight: 800; letter-spacing: -0.5px; color: var(--text); text-decoration: none; }
+    .nav-logo img { width: 30px; height: 30px; border-radius: 8px; object-fit: cover; }
     .nav-logo span { color: var(--accent-light); }
 
     .nav-right { display: flex; align-items: center; gap: 16px; }
@@ -391,7 +393,7 @@
 </div>
 
 <nav>
-  <a href="dashboard.html" class="nav-logo">Up and <span>Forward</span></a>
+  <a href="dashboard.html" class="nav-logo"><img src="logo.png" alt="" />Up and <span>Forward</span></a>
   <div class="nav-right">
     <a class="nav-link" href="index.html">Home</a>
     <a class="nav-link" href="companies.html">Companies</a>
