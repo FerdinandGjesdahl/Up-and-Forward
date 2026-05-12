@@ -433,7 +433,7 @@
     <button class="btn btn-ghost" id="btn-load" onclick="loadSavedJobs()">Saved jobs</button>
     <button class="btn btn-ghost" id="btn-refresh" onclick="refreshAllSources()">Refresh all</button>
     <button class="btn btn-ghost" id="btn-export" onclick="exportJobs()">Export JSON</button>
-    <button class="btn btn-ghost" id="btn-clear" onclick="clearSavedJobs()">Clear</button>
+    <button class="btn btn-ghost" id="btn-clear" onclick="clearSavedJobs()">Clear dashboard</button>
   </div>
 
   <!-- Search -->
@@ -443,13 +443,13 @@
 
   <section class="automation-panel" aria-labelledby="automation-title">
     <div>
-      <div class="automation-kicker">Daily AI scan</div>
-      <h2 class="automation-title" id="automation-title">Automatic email alerts for new roles</h2>
-      <p class="automation-copy">Your saved career pages are monitored once a day. When new jobs appear, Up and Forward sends a clean email summary with direct application links.</p>
+      <div class="automation-kicker">Email update</div>
+      <h2 class="automation-title" id="automation-title">Send the current job list by email</h2>
+      <p class="automation-copy">Refresh your saved sources when you want, then send a polished email summary of the jobs currently in your dashboard.</p>
     </div>
     <div class="automation-actions">
-      <button class="btn btn-primary" id="btn-email" onclick="enableEmailAlerts()">Enable email alerts</button>
-      <div class="automation-status" id="automation-status">Email alerts are ready when you save a source.</div>
+      <button class="btn btn-primary" id="btn-email" onclick="sendEmailUpdate()">Send email update</button>
+      <div class="automation-status" id="automation-status">Email sends to your signed-in address.</div>
     </div>
   </section>
 
@@ -708,7 +708,7 @@
           <a class="source-url" href="${escHtml(url)}" target="_blank" rel="noopener noreferrer">${escHtml(source.url)}</a>
           <div class="source-detail">
             <span>${Number(source.last_count || 0)} jobs last scan</span>
-            <span>Daily monitor active</span>
+            <span>Ready for refresh</span>
           </div>
         </div>
       `;
@@ -893,21 +893,8 @@
     return body || {};
   }
 
-  async function registerWatchUrl(url, jobs = []) {
-    return postJson('/api/watch-url', { url, jobs });
-  }
-
-  async function subscribeEmail(email) {
-    return postJson('/api/email-subscribe', { email });
-  }
-
-  async function ensureAutomation(url, jobs = []) {
-    const tasks = [registerWatchUrl(url, jobs)];
-    if (currentUser?.email) tasks.push(subscribeEmail(currentUser.email));
-    const results = await Promise.allSettled(tasks);
-    const rejected = results.find((result) => result.status === 'rejected');
-    if (rejected) throw rejected.reason;
-    setAutomationStatus(currentUser?.email ? `Daily email alerts active for ${currentUser.email}.` : 'Daily monitoring active for this source.', 'ok');
+  async function sendJobUpdateEmail(email, jobs) {
+    return postJson('/api/send-job-update-email', { email, jobs });
   }
 
   // ── Load saved jobs ──────────────────────────────────────────────────────────
@@ -991,9 +978,8 @@
     ]);
     renderSources(sources);
     displayJobs(mergedJobs);
-    await ensureAutomation(url, jobsFromSource);
     const saveSummary = `${added} new, ${mergedJobs.length} total saved`;
-    setStatus(`${statusText} Saved ${saveSummary}. Daily email scan is active.`, okType);
+    setStatus(`${statusText} Saved ${saveSummary}.`, okType);
   }
 
   window.scrapeFromUrl = async function() {
@@ -1068,7 +1054,6 @@
           const jobsFromSource = jobs.map((job) => ({ ...job, source_url: sourceUrl }));
           await saveSourceUrl(sourceUrl, jobsFromSource.length);
           const result = await mergeSavedJobs(jobsFromSource);
-          await registerWatchUrl(sourceUrl, jobsFromSource);
           mergedJobs = result.jobs;
           addedTotal += result.added;
           scanned += 1;
@@ -1081,7 +1066,6 @@
       const latestSources = await fetchSavedSources();
       renderSources(latestSources);
       displayJobs(mergedJobs);
-      await enableEmailAlerts(false);
 
       const summary = `Refreshed ${scanned}/${urls.length} sources. ${addedTotal} new listings saved.`;
       setStatus(errors.length ? `${summary} ${errors.length} source(s) failed.` : summary, errors.length ? 'error' : 'ok');
@@ -1092,23 +1076,32 @@
     }
   };
 
-  window.enableEmailAlerts = async function(showStatus = true) {
+  window.sendEmailUpdate = async function() {
     if (!requireUser()) return;
     if (!currentUser?.email) {
-      setAutomationStatus('Sign in with an email address to enable alerts.', 'error');
+      setAutomationStatus('Sign in with an email address to send updates.', 'error');
       return;
     }
-    if (showStatus) setAutomationStatus('Enabling daily email alerts…');
+    if (!allJobs.length) {
+      setAutomationStatus('No jobs in the dashboard to email yet.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-email');
+    btn.disabled = true;
+    setAutomationStatus(`Sending ${allJobs.length} jobs to ${currentUser.email}…`);
     try {
-      const result = await subscribeEmail(currentUser.email);
+      const result = await sendJobUpdateEmail(currentUser.email, allJobs);
       setAutomationStatus(
-        result.mail_configured
-          ? `Daily email alerts active for ${currentUser.email}.`
-          : `Email saved for ${currentUser.email}. Add RESEND_API_KEY on Render to send mail.`,
-        result.mail_configured ? 'ok' : ''
+        result.sent
+          ? `Email update sent to ${currentUser.email}.`
+          : `Email not sent: ${result.reason || 'mail is not configured on Render'}.`,
+        result.sent ? 'ok' : 'error'
       );
     } catch (error) {
-      setAutomationStatus(`Could not enable email alerts: ${error.message}`, 'error');
+      setAutomationStatus(`Could not send email update: ${error.message}`, 'error');
+    } finally {
+      btn.disabled = false;
     }
   };
 
@@ -1148,8 +1141,7 @@
   window.bootstrapUserDashboard = function(user) {
     currentUser = user;
     if (currentUser?.email) {
-      setAutomationStatus(`Email alerts will be sent to ${currentUser.email}.`);
-      enableEmailAlerts(false);
+      setAutomationStatus(`Email updates will be sent to ${currentUser.email}.`);
     }
     loadSavedJobs();
   };

@@ -2775,6 +2775,28 @@ async function sendNewJobsEmail(newJobs) {
   return { sent, skipped, recipient_count: recipients.length };
 }
 
+async function sendJobUpdateEmail(to, jobs) {
+  const email = normalizeEmail(to);
+  if (!isValidEmail(email)) {
+    throw new Error('Invalid email address');
+  }
+  if (!Array.isArray(jobs) || !jobs.length) {
+    throw new Error('No jobs to send');
+  }
+
+  const subject = `${jobs.length} job${jobs.length === 1 ? '' : 's'} in your Up and Forward dashboard`;
+  const html = formatJobEmailHtml(jobs);
+  const text = formatJobEmailText(jobs);
+  const result = await sendEmail(email, subject, html, text);
+  return {
+    ok: true,
+    sent: !result?.skipped,
+    skipped: Boolean(result?.skipped),
+    reason: result?.reason || '',
+    mail_configured: Boolean(RESEND_API_KEY)
+  };
+}
+
 async function handleEmailSubscribe(req, res) {
   try {
     const body = await readJsonBody(req);
@@ -2786,6 +2808,16 @@ async function handleEmailSubscribe(req, res) {
     });
   } catch (error) {
     sendJson(res, 400, { error: error.message });
+  }
+}
+
+async function handleSendJobUpdateEmail(req, res) {
+  try {
+    const body = await readJsonBody(req);
+    const result = await sendJobUpdateEmail(body.email, body.jobs);
+    sendJson(res, 200, result);
+  } catch (error) {
+    sendJson(res, 400, { error: error.message, mail_configured: Boolean(RESEND_API_KEY) });
   }
 }
 
@@ -3030,6 +3062,11 @@ const server = http.createServer(async (req, res) => {
 
   if (method === 'POST' && url.pathname === '/api/email-subscribe') {
     await handleEmailSubscribe(req, res);
+    return;
+  }
+
+  if (method === 'POST' && url.pathname === '/api/send-job-update-email') {
+    await handleSendJobUpdateEmail(req, res);
     return;
   }
 

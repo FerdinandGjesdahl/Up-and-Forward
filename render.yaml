@@ -16,9 +16,7 @@ services:
       - key: PLAYWRIGHT_BROWSERS_PATH
         value: "0"
       - key: MONITOR_ENABLED
-        value: "true"
-      - key: MONITOR_INTERVAL_MS
-        value: "86400000"
+        value: "false"
       - key: OPENAI_API_KEY
         sync: false
       - key: RESEND_API_KEY
