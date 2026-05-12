@@ -125,7 +125,7 @@
       border-radius: 14px;
       padding: 14px;
       display: grid;
-      grid-template-columns: 1fr auto auto auto auto;
+      grid-template-columns: 1fr repeat(5, auto);
       gap: 10px;
       margin-bottom: 14px;
     }
@@ -158,6 +158,51 @@
     .btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
     .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-light); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .automation-panel {
+      background: linear-gradient(135deg, rgba(37,99,235,0.16), rgba(16,185,129,0.08)), var(--surface);
+      border: 1px solid rgba(59,130,246,0.28);
+      border-radius: 14px;
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr auto;
+      margin-bottom: 14px;
+      padding: 18px 20px;
+    }
+    .automation-kicker {
+      color: var(--accent-light);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+    .automation-title {
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0;
+      margin-bottom: 5px;
+    }
+    .automation-copy {
+      color: var(--muted);
+      font-size: 0.83rem;
+      line-height: 1.5;
+      max-width: 650px;
+    }
+    .automation-actions {
+      align-items: flex-end;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      justify-content: center;
+      min-width: 180px;
+    }
+    .automation-status {
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-align: right;
+    }
 
     .source-panel {
       background: var(--surface);
@@ -215,6 +260,14 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .source-detail {
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      font-size: 0.72rem;
+      gap: 8px;
+      grid-column: 1 / -1;
     }
     .source-time {
       color: var(--muted);
@@ -324,6 +377,9 @@
       .user-chip { display: none; }
       .stats { grid-template-columns: 1fr; }
       .controls { grid-template-columns: 1fr; }
+      .automation-panel { grid-template-columns: 1fr; }
+      .automation-actions { align-items: stretch; min-width: 0; }
+      .automation-status { text-align: left; }
       .job { flex-direction: column; align-items: flex-start; }
     }
   </style>
@@ -375,6 +431,7 @@
     <input id="url-input" type="url" placeholder="Paste any job page URL to scan…" autocomplete="url" spellcheck="false" />
     <button class="btn btn-primary" id="btn-fetch" onclick="scrapeFromUrl()">Scan URL</button>
     <button class="btn btn-ghost" id="btn-load" onclick="loadSavedJobs()">Saved jobs</button>
+    <button class="btn btn-ghost" id="btn-refresh" onclick="refreshAllSources()">Refresh all</button>
     <button class="btn btn-ghost" id="btn-export" onclick="exportJobs()">Export JSON</button>
     <button class="btn btn-ghost" id="btn-clear" onclick="clearSavedJobs()">Clear</button>
   </div>
@@ -383,6 +440,18 @@
   <div class="controls" style="grid-template-columns:1fr; padding:10px 14px; margin-bottom:10px;">
     <input id="search-input" type="search" name="job-search" placeholder="Search by title, company, location, or posted date…" autocomplete="off" spellcheck="false" oninput="applyFilters()" />
   </div>
+
+  <section class="automation-panel" aria-labelledby="automation-title">
+    <div>
+      <div class="automation-kicker">Daily AI scan</div>
+      <h2 class="automation-title" id="automation-title">Automatic email alerts for new roles</h2>
+      <p class="automation-copy">Your saved career pages are monitored once a day. When new jobs appear, Up and Forward sends a clean email summary with direct application links.</p>
+    </div>
+    <div class="automation-actions">
+      <button class="btn btn-primary" id="btn-email" onclick="enableEmailAlerts()">Enable email alerts</button>
+      <div class="automation-status" id="automation-status">Email alerts are ready when you save a source.</div>
+    </div>
+  </section>
 
   <section class="source-panel" aria-labelledby="sources-title">
     <div class="source-panel-head">
@@ -550,6 +619,12 @@
     el.textContent = msg;
     el.className = `status-bar${type ? ' '+type : ''}`;
   }
+  function setAutomationStatus(msg, type='') {
+    const el = document.getElementById('automation-status');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = type === 'error' ? 'var(--red)' : type === 'ok' ? 'var(--green)' : 'var(--muted)';
+  }
 
   function userStorageKey(prefix) {
     if (!currentUser?.uid) return '';
@@ -564,6 +639,10 @@
 
   function lastUrlKey() {
     return userStorageKey(STORAGE_URL_PREFIX);
+  }
+
+  function actionButtonIds() {
+    return ['btn-fetch', 'btn-load', 'btn-refresh', 'btn-export', 'btn-clear', 'btn-email'];
   }
 
   function jobKey(job) {
@@ -627,15 +706,20 @@
           <div class="source-host">${escHtml(sourceHost(source.url))}</div>
           <div class="source-time">${scannedAt ? escHtml(relativeTime(scannedAt)) : 'saved'}</div>
           <a class="source-url" href="${escHtml(url)}" target="_blank" rel="noopener noreferrer">${escHtml(source.url)}</a>
+          <div class="source-detail">
+            <span>${Number(source.last_count || 0)} jobs last scan</span>
+            <span>Daily monitor active</span>
+          </div>
         </div>
       `;
     }).join('');
   }
 
-  async function saveSourceUrl(url) {
+  async function saveSourceUrl(url, count = 0) {
     const { serverTimestamp, setDoc } = store();
     await setDoc(userDoc('sources', stableId(url)), {
       url,
+      last_count: Number(count || 0),
       last_scanned_at: serverTimestamp()
     }, { merge: true });
   }
@@ -795,6 +879,37 @@
     return { jobs, meta: payload?.meta || {} };
   }
 
+  async function postJson(path, payload = {}) {
+    const response = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    let body = null;
+    try { body = await response.json(); } catch {}
+    if (!response.ok) {
+      throw new Error(body?.error || `HTTP ${response.status}`);
+    }
+    return body || {};
+  }
+
+  async function registerWatchUrl(url, jobs = []) {
+    return postJson('/api/watch-url', { url, jobs });
+  }
+
+  async function subscribeEmail(email) {
+    return postJson('/api/email-subscribe', { email });
+  }
+
+  async function ensureAutomation(url, jobs = []) {
+    const tasks = [registerWatchUrl(url, jobs)];
+    if (currentUser?.email) tasks.push(subscribeEmail(currentUser.email));
+    const results = await Promise.allSettled(tasks);
+    const rejected = results.find((result) => result.status === 'rejected');
+    if (rejected) throw rejected.reason;
+    setAutomationStatus(currentUser?.email ? `Daily email alerts active for ${currentUser.email}.` : 'Daily monitoring active for this source.', 'ok');
+  }
+
   // ── Load saved jobs ──────────────────────────────────────────────────────────
   window.loadSavedJobs = async function() {
     if (!requireUser()) return;
@@ -869,15 +984,16 @@
     const jobsFromSource = jobs.map((job) => ({ ...job, source_url: url }));
     displayJobs(jobsFromSource);
     setStatus(`${statusText} Saving to dashboard…`, okType);
-    await saveSourceUrl(url);
+    await saveSourceUrl(url, jobsFromSource.length);
     const [{ jobs: mergedJobs, added }, sources] = await Promise.all([
       mergeSavedJobs(jobsFromSource),
       fetchSavedSources()
     ]);
     renderSources(sources);
     displayJobs(mergedJobs);
+    await ensureAutomation(url, jobsFromSource);
     const saveSummary = `${added} new, ${mergedJobs.length} total saved`;
-    setStatus(`${statusText} Saved ${saveSummary}.`, okType);
+    setStatus(`${statusText} Saved ${saveSummary}. Daily email scan is active.`, okType);
   }
 
   window.scrapeFromUrl = async function() {
@@ -892,7 +1008,7 @@
 
     if (searchInput) searchInput.value = '';
     setStatus(`Scanning URL with ATS APIs, browser rendering, and OpenAI via ${API_BASE}…`);
-    ['btn-fetch','btn-load','btn-export','btn-clear'].forEach(id => document.getElementById(id).disabled = true);
+    actionButtonIds().forEach(id => document.getElementById(id).disabled = true);
 
     const runFallback = async (reason) => {
       if (reason) setStatus(`${reason}. Using link parser…`);
@@ -903,7 +1019,7 @@
           await showAndSaveJobs(fallbackJobs, url, `Found ${fallbackJobs.length} listings via ${via}.`, fallbackJobs.length ? 'ok' : '');
         } catch (saveError) {
           displayJobs(fallbackJobs);
-          setStatus(`Found ${fallbackJobs.length} listings via ${via}, but could not save to Firebase: ${saveError.message}`, 'error');
+          setStatus(`Found ${fallbackJobs.length} listings via ${via}, but could not save or monitor them: ${saveError.message}`, 'error');
         }
       } catch (fallbackError) {
         setStatus(`Could not extract jobs from this URL: ${fallbackError.message}`, 'error');
@@ -917,14 +1033,82 @@
       } catch (saveError) {
         const jobsFromSource = jobs.map((job) => ({ ...job, source_url: url }));
         displayJobs(jobsFromSource);
-        setStatus(`${formatPipelineStatus(jobs.length, meta)}, but could not save to Firebase: ${saveError.message}`, 'error');
+        setStatus(`${formatPipelineStatus(jobs.length, meta)}, but could not save or monitor them: ${saveError.message}`, 'error');
       }
     } catch (e) {
       await runFallback(`Extraction API failed (${e.message})`);
     } finally {
-      ['btn-fetch','btn-load','btn-export','btn-clear'].forEach(id => document.getElementById(id).disabled = false);
+      actionButtonIds().forEach(id => document.getElementById(id).disabled = false);
       document.getElementById('url-input').value = '';
       localStorage.removeItem(lastUrlKey());
+    }
+  };
+
+  window.refreshAllSources = async function() {
+    if (!requireUser()) return;
+    actionButtonIds().forEach(id => document.getElementById(id).disabled = true);
+    setStatus('Refreshing all saved sources with AI extraction…');
+    try {
+      const sources = await fetchSavedSources();
+      const urls = sources.map((source) => source.url).filter(Boolean);
+      if (!urls.length) {
+        setStatus('Add at least one careers URL before refreshing all sources.', 'error');
+        return;
+      }
+
+      let addedTotal = 0;
+      let scanned = 0;
+      const errors = [];
+      let mergedJobs = await fetchSavedJobs();
+
+      for (const sourceUrl of urls) {
+        setStatus(`Refreshing ${sourceHost(sourceUrl)}…`);
+        try {
+          const { jobs } = await extractWithLocalApi(sourceUrl);
+          const jobsFromSource = jobs.map((job) => ({ ...job, source_url: sourceUrl }));
+          await saveSourceUrl(sourceUrl, jobsFromSource.length);
+          const result = await mergeSavedJobs(jobsFromSource);
+          await registerWatchUrl(sourceUrl, jobsFromSource);
+          mergedJobs = result.jobs;
+          addedTotal += result.added;
+          scanned += 1;
+          displayJobs(mergedJobs);
+        } catch (error) {
+          errors.push(`${sourceHost(sourceUrl)}: ${error.message}`);
+        }
+      }
+
+      const latestSources = await fetchSavedSources();
+      renderSources(latestSources);
+      displayJobs(mergedJobs);
+      await enableEmailAlerts(false);
+
+      const summary = `Refreshed ${scanned}/${urls.length} sources. ${addedTotal} new listings saved.`;
+      setStatus(errors.length ? `${summary} ${errors.length} source(s) failed.` : summary, errors.length ? 'error' : 'ok');
+    } catch (error) {
+      setStatus(`Could not refresh sources: ${error.message}`, 'error');
+    } finally {
+      actionButtonIds().forEach(id => document.getElementById(id).disabled = false);
+    }
+  };
+
+  window.enableEmailAlerts = async function(showStatus = true) {
+    if (!requireUser()) return;
+    if (!currentUser?.email) {
+      setAutomationStatus('Sign in with an email address to enable alerts.', 'error');
+      return;
+    }
+    if (showStatus) setAutomationStatus('Enabling daily email alerts…');
+    try {
+      const result = await subscribeEmail(currentUser.email);
+      setAutomationStatus(
+        result.mail_configured
+          ? `Daily email alerts active for ${currentUser.email}.`
+          : `Email saved for ${currentUser.email}. Add RESEND_API_KEY on Render to send mail.`,
+        result.mail_configured ? 'ok' : ''
+      );
+    } catch (error) {
+      setAutomationStatus(`Could not enable email alerts: ${error.message}`, 'error');
     }
   };
 
@@ -963,6 +1147,10 @@
 
   window.bootstrapUserDashboard = function(user) {
     currentUser = user;
+    if (currentUser?.email) {
+      setAutomationStatus(`Email alerts will be sent to ${currentUser.email}.`);
+      enableEmailAlerts(false);
+    }
     loadSavedJobs();
   };
 </script>

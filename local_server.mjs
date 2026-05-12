@@ -25,8 +25,11 @@ const PORT = Number(process.env.PORT || 8787);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
 const PUSH_CONTACT = process.env.PUSH_CONTACT || 'mailto:alerts@upandforward.local';
-const MONITOR_INTERVAL_MS = Number(process.env.MONITOR_INTERVAL_MS || 15 * 60 * 1000);
+const MONITOR_INTERVAL_MS = Number(process.env.MONITOR_INTERVAL_MS || 24 * 60 * 60 * 1000);
 const MONITOR_ENABLED = !['0', 'false', 'off', 'disabled'].includes(String(process.env.MONITOR_ENABLED || 'true').toLowerCase());
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const MAIL_FROM = process.env.MAIL_FROM || 'Up and Forward <alerts@upandforward.local>';
+const ALERT_EMAILS = process.env.ALERT_EMAILS || '';
 
 const MAX_BODY_SIZE = 2 * 1024 * 1024;
 const MAX_PAGE_CHARS = 220_000;
@@ -40,6 +43,7 @@ const MAX_ITERATIVE_PAGES = 24;
 const FETCH_TIMEOUT_MS = 15_000;
 const ATS_FETCH_TIMEOUT_MS = 15_000;
 const PLAYWRIGHT_TIMEOUT_MS = Number(process.env.PLAYWRIGHT_TIMEOUT_MS || 25_000);
+const EXTRACT_TIMEOUT_MS = Number(process.env.EXTRACT_TIMEOUT_MS || 120_000);
 const RENDERED_FETCH = String(process.env.RENDERED_FETCH || 'always').toLowerCase();
 const MAX_RENDERED_LINKS = 1500;
 const MAX_RENDERED_TEXT_CHARS = 180_000;
@@ -47,6 +51,7 @@ const MAX_ATS_JOBS = 500;
 const DATA_DIR = path.join(ROOT_DIR, 'data');
 const VAPID_KEYS_FILE = path.join(DATA_DIR, 'vapid_keys.json');
 const PUSH_SUBSCRIPTIONS_FILE = path.join(DATA_DIR, 'push_subscriptions.json');
+const EMAIL_SUBSCRIPTIONS_FILE = path.join(DATA_DIR, 'email_subscriptions.json');
 const WATCH_URLS_FILE = path.join(DATA_DIR, 'watch_urls.json');
 const MONITOR_SEEN_FILE = path.join(DATA_DIR, 'monitor_seen_jobs.json');
 const MONITOR_LATEST_FILE = path.join(DATA_DIR, 'latest_monitor_jobs.json');
@@ -211,6 +216,14 @@ async function readJsonBody(req) {
   }
 }
 
+function withTimeout(promise, timeoutMs, message) {
+  let timeout = null;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeout));
+}
+
 function cleanText(value) {
   return String(value || '')
     .replace(/<[^>]+>/g, ' ')
@@ -264,6 +277,15 @@ function titleCaseFromSlug(value) {
 
 function uniqueNonEmpty(values) {
   return [...new Set(values.map((value) => cleanText(value)).filter(Boolean))];
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function firstStringFromKeys(object, keys) {
@@ -2483,7 +2505,11 @@ async function handleExtractJobs(req, res) {
   }
 
   try {
-    const result = await extractJobsForUrl(String(body.url || '').trim());
+    const result = await withTimeout(
+      extractJobsForUrl(String(body.url || '').trim()),
+      EXTRACT_TIMEOUT_MS,
+      `Extraction timed out after ${EXTRACT_TIMEOUT_MS}ms`
+    );
     sendJson(res, 200, result);
   } catch (error) {
     sendJson(res, 500, { error: error.message });
@@ -2603,6 +2629,166 @@ async function handleSendTestNotification(_req, res) {
   }
 }
 
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function envAlertEmails() {
+  return uniqueNonEmpty(ALERT_EMAILS.split(',').map((email) => normalizeEmail(email)))
+    .filter(isValidEmail);
+}
+
+async function loadEmailSubscriptions() {
+  const saved = await readJsonFile(EMAIL_SUBSCRIPTIONS_FILE, []);
+  const savedEmails = Array.isArray(saved)
+    ? saved.map((item) => normalizeEmail(typeof item === 'string' ? item : item?.email)).filter(isValidEmail)
+    : [];
+  return uniqueNonEmpty([...envAlertEmails(), ...savedEmails]);
+}
+
+async function saveEmailSubscription(email) {
+  const normalized = normalizeEmail(email);
+  if (!isValidEmail(normalized)) {
+    throw new Error('Invalid email address');
+  }
+
+  const subscriptions = await readJsonFile(EMAIL_SUBSCRIPTIONS_FILE, []);
+  const byEmail = new Map(
+    (Array.isArray(subscriptions) ? subscriptions : [])
+      .map((item) => [normalizeEmail(typeof item === 'string' ? item : item?.email), item])
+      .filter(([address]) => isValidEmail(address))
+  );
+
+  byEmail.set(normalized, {
+    email: normalized,
+    saved_at: new Date().toISOString()
+  });
+
+  await writeJsonFile(EMAIL_SUBSCRIPTIONS_FILE, [...byEmail.values()]);
+  return loadEmailSubscriptions();
+}
+
+function formatJobEmailHtml(jobs) {
+  const rows = jobs.slice(0, 40).map((job) => {
+    const title = escapeHtml(job.title || 'Untitled role');
+    const company = escapeHtml(job.company || job.bank || 'Unknown company');
+    const location = job.location ? escapeHtml(job.location) : 'Location not listed';
+    const date = job.posted_date ? escapeHtml(job.posted_date) : 'Date not listed';
+    const url = escapeHtml(job.url || '#');
+    return `
+      <tr>
+        <td style="padding:18px 0;border-bottom:1px solid #e5e7eb;">
+          <div style="font-size:12px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.04em;">${company}</div>
+          <div style="font-size:18px;font-weight:800;color:#111827;margin:5px 0 8px;">${title}</div>
+          <div style="font-size:13px;color:#6b7280;margin-bottom:12px;">${location} · Posted ${date}</div>
+          <a href="${url}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;">Open role</a>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  const extra = jobs.length > 40
+    ? `<p style="color:#6b7280;font-size:13px;margin:16px 0 0;">Plus ${jobs.length - 40} more new roles in your dashboard.</p>`
+    : '';
+
+  return `<!doctype html>
+    <html>
+      <body style="margin:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111827;">
+        <div style="max-width:680px;margin:0 auto;padding:32px 16px;">
+          <div style="background:#0a0c10;border-radius:16px 16px 0 0;padding:28px 30px;color:#fff;">
+            <div style="font-size:13px;font-weight:800;color:#60a5fa;text-transform:uppercase;letter-spacing:.08em;">Up and Forward</div>
+            <h1 style="font-size:28px;line-height:1.15;margin:10px 0 0;">${jobs.length} new job${jobs.length === 1 ? '' : 's'} found</h1>
+            <p style="color:#aeb6c4;margin:10px 0 0;font-size:15px;">Your monitored career pages were scanned automatically.</p>
+          </div>
+          <div style="background:#fff;border:1px solid #e5e7eb;border-top:0;border-radius:0 0 16px 16px;padding:8px 30px 28px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">${rows}</table>
+            ${extra}
+            <p style="color:#9ca3af;font-size:12px;margin:24px 0 0;">You are receiving this because your email is subscribed to Up and Forward job alerts.</p>
+          </div>
+        </div>
+      </body>
+    </html>`;
+}
+
+function formatJobEmailText(jobs) {
+  return [
+    `Up and Forward found ${jobs.length} new job${jobs.length === 1 ? '' : 's'}:`,
+    '',
+    ...jobs.map((job) => [
+      `${job.title || 'Untitled role'} — ${job.company || job.bank || 'Unknown company'}`,
+      [job.location, job.posted_date].filter(Boolean).join(' · '),
+      job.url || ''
+    ].filter(Boolean).join('\n')),
+    '',
+    'Open your dashboard for the full list.'
+  ].join('\n\n');
+}
+
+async function sendEmail(to, subject, html, text) {
+  if (!RESEND_API_KEY) {
+    return { skipped: true, reason: 'RESEND_API_KEY is not set' };
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: MAIL_FROM,
+      to,
+      subject,
+      html,
+      text
+    })
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.message || `Resend returned HTTP ${response.status}`);
+  }
+  return payload;
+}
+
+async function sendNewJobsEmail(newJobs) {
+  if (!newJobs.length) return { sent: 0, skipped: 0 };
+
+  const recipients = await loadEmailSubscriptions();
+  if (!recipients.length) return { sent: 0, skipped: 0, reason: 'No email subscribers' };
+
+  const subject = `${newJobs.length} new job${newJobs.length === 1 ? '' : 's'} from Up and Forward`;
+  const html = formatJobEmailHtml(newJobs);
+  const text = formatJobEmailText(newJobs);
+  let sent = 0;
+  let skipped = 0;
+
+  const results = await Promise.allSettled(recipients.map((email) => sendEmail(email, subject, html, text)));
+  for (const result of results) {
+    if (result.status === 'fulfilled' && !result.value?.skipped) sent += 1;
+    else skipped += 1;
+  }
+  return { sent, skipped, recipient_count: recipients.length };
+}
+
+async function handleEmailSubscribe(req, res) {
+  try {
+    const body = await readJsonBody(req);
+    const subscribers = await saveEmailSubscription(body.email);
+    sendJson(res, 200, {
+      ok: true,
+      email_count: subscribers.length,
+      mail_configured: Boolean(RESEND_API_KEY)
+    });
+  } catch (error) {
+    sendJson(res, 400, { error: error.message });
+  }
+}
+
 async function loadWatchUrls() {
   const urls = await readJsonFile(WATCH_URLS_FILE, []);
   return Array.isArray(urls) ? urls.filter(Boolean) : [];
@@ -2646,7 +2832,10 @@ async function handleWatchUrl(req, res) {
       await saveWatchUrls(urls);
     }
 
-    const result = await extractJobsForUrl(parsedUrl.href);
+    const seededJobs = Array.isArray(body.jobs) ? body.jobs : null;
+    const result = seededJobs
+      ? { jobs: seededJobs }
+      : await extractJobsForUrl(parsedUrl.href);
     const seeded = await markJobsSeen(result.jobs);
     await writeJsonFile(MONITOR_LATEST_FILE, {
       updated_at: new Date().toISOString(),
@@ -2669,10 +2858,13 @@ async function handleWatchUrls(_req, res) {
   try {
     const urls = await loadWatchUrls();
     const subscriptions = await loadPushSubscriptions();
+    const emails = await loadEmailSubscriptions();
     sendJson(res, 200, {
       urls,
       watch_count: urls.length,
       subscription_count: subscriptions.length,
+      email_count: emails.length,
+      mail_configured: Boolean(RESEND_API_KEY),
       monitor_enabled: MONITOR_ENABLED,
       monitor_interval_ms: MONITOR_INTERVAL_MS
     });
@@ -2684,15 +2876,27 @@ async function handleWatchUrls(_req, res) {
 let monitorRunning = false;
 
 async function runMonitorCycle() {
-  if (monitorRunning) return;
+  if (monitorRunning) {
+    return { ok: false, skipped: true, reason: 'Monitor is already running' };
+  }
   monitorRunning = true;
   try {
     const urls = await loadWatchUrls();
-    if (!urls.length) return;
+    if (!urls.length) {
+      return {
+        ok: true,
+        scanned_urls: 0,
+        latest_count: 0,
+        new_count: 0,
+        push: { sent: 0, removed: 0 },
+        email: { sent: 0, skipped: 0 }
+      };
+    }
 
     const seen = await readJsonFile(MONITOR_SEEN_FILE, {});
     const latestJobs = [];
     const newJobs = [];
+    const errors = [];
     const now = new Date().toISOString();
 
     for (const url of urls) {
@@ -2707,6 +2911,7 @@ async function runMonitorCycle() {
           newJobs.push({ ...job, is_new: true });
         }
       } catch (error) {
+        errors.push({ url, error: error.message });
         console.warn(`Monitor failed for ${url}: ${error.message}`);
       }
     }
@@ -2714,20 +2919,50 @@ async function runMonitorCycle() {
     await writeJsonFile(MONITOR_SEEN_FILE, seen);
     await writeJsonFile(MONITOR_LATEST_FILE, { updated_at: now, jobs: latestJobs });
 
+    const pushResults = [];
     for (const job of newJobs) {
-      await sendPushToAll({
+      pushResults.push(await sendPushToAll({
         title: job.title || 'New job posted',
         body: `${job.company || job.bank || 'New listing'}${job.location ? ` · ${job.location}` : ''}`,
         url: job.url || '/dashboard.html',
         tag: `job-${jobFingerprint(job).slice(0, 48)}`
-      });
+      }));
     }
+    const push = pushResults.reduce((acc, item) => ({
+      sent: acc.sent + Number(item?.sent || 0),
+      removed: acc.removed + Number(item?.removed || 0)
+    }), { sent: 0, removed: 0 });
+    const email = await sendNewJobsEmail(newJobs);
 
     if (newJobs.length) {
-      console.log(`Monitor sent ${newJobs.length} new job notification(s).`);
+      console.log(`Monitor found ${newJobs.length} new job(s). Email sent to ${email.sent || 0} recipient(s).`);
     }
+
+    return {
+      ok: true,
+      scanned_urls: urls.length,
+      latest_count: latestJobs.length,
+      new_count: newJobs.length,
+      error_count: errors.length,
+      errors,
+      push,
+      email
+    };
   } finally {
     monitorRunning = false;
+  }
+}
+
+async function handleRefreshWatchUrls(_req, res) {
+  try {
+    const result = await withTimeout(
+      runMonitorCycle(),
+      Math.max(EXTRACT_TIMEOUT_MS, 180_000),
+      'Monitor refresh timed out'
+    );
+    sendJson(res, 200, result);
+  } catch (error) {
+    sendJson(res, 500, { error: error.message });
   }
 }
 
@@ -2763,6 +2998,7 @@ const server = http.createServer(async (req, res) => {
   if (method === 'GET' && url.pathname === '/api/health') {
     const watchUrls = await loadWatchUrls().catch(() => []);
     const subscriptions = await loadPushSubscriptions().catch(() => []);
+    const emails = await loadEmailSubscriptions().catch(() => []);
     sendJson(res, 200, {
       ok: true,
       openai_key_loaded: Boolean(OPENAI_API_KEY),
@@ -2770,7 +3006,9 @@ const server = http.createServer(async (req, res) => {
       monitor_enabled: MONITOR_ENABLED,
       monitor_interval_ms: MONITOR_INTERVAL_MS,
       watch_count: watchUrls.length,
-      subscription_count: subscriptions.length
+      subscription_count: subscriptions.length,
+      email_count: emails.length,
+      mail_configured: Boolean(RESEND_API_KEY)
     });
     return;
   }
@@ -2790,6 +3028,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (method === 'POST' && url.pathname === '/api/email-subscribe') {
+    await handleEmailSubscribe(req, res);
+    return;
+  }
+
   if (method === 'GET' && url.pathname === '/api/watch-urls') {
     await handleWatchUrls(req, res);
     return;
@@ -2797,6 +3040,11 @@ const server = http.createServer(async (req, res) => {
 
   if (method === 'POST' && url.pathname === '/api/watch-url') {
     await handleWatchUrl(req, res);
+    return;
+  }
+
+  if (method === 'POST' && url.pathname === '/api/refresh-watch-urls') {
+    await handleRefreshWatchUrls(req, res);
     return;
   }
 

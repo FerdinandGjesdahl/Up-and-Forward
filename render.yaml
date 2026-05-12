@@ -13,7 +13,15 @@ services:
         value: gpt-4.1-mini
       - key: RENDERED_FETCH
         value: auto
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: "0"
       - key: MONITOR_ENABLED
-        value: "false"
+        value: "true"
+      - key: MONITOR_INTERVAL_MS
+        value: "86400000"
       - key: OPENAI_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
         sync: false
