@@ -867,6 +867,8 @@
 
   async function showAndSaveJobs(jobs, url, statusText, okType = '') {
     const jobsFromSource = jobs.map((job) => ({ ...job, source_url: url }));
+    displayJobs(jobsFromSource);
+    setStatus(`${statusText} Saving to dashboard…`, okType);
     await saveSourceUrl(url);
     const [{ jobs: mergedJobs, added }, sources] = await Promise.all([
       mergeSavedJobs(jobsFromSource),
