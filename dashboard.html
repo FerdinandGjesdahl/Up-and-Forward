@@ -159,6 +159,75 @@
     .btn-ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-light); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+    .source-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .source-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .source-panel h2 {
+      font-size: 0.86rem;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+    .source-panel-count {
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+    .source-list {
+      display: grid;
+      gap: 8px;
+      max-height: 180px;
+      overflow: auto;
+    }
+    .source-item {
+      align-items: center;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: grid;
+      gap: 4px;
+      grid-template-columns: 1fr auto;
+      min-width: 0;
+      padding: 10px 12px;
+    }
+    .source-host {
+      color: var(--text);
+      font-size: 0.83rem;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .source-url {
+      color: var(--muted);
+      font-size: 0.74rem;
+      grid-column: 1 / -1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .source-time {
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .source-empty {
+      color: var(--muted);
+      font-size: 0.82rem;
+      padding: 4px 0;
+    }
+
     /* ── Filter pills ── */
     .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
     .filter-pill {
@@ -315,6 +384,16 @@
     <input id="search-input" type="search" name="job-search" placeholder="Search by title, company, location, or posted date…" autocomplete="off" spellcheck="false" oninput="applyFilters()" />
   </div>
 
+  <section class="source-panel" aria-labelledby="sources-title">
+    <div class="source-panel-head">
+      <h2 id="sources-title">Saved sources</h2>
+      <span class="source-panel-count" id="source-panel-count">0 links</span>
+    </div>
+    <div class="source-list" id="source-list">
+      <div class="source-empty">Add a careers URL to build your job dashboard.</div>
+    </div>
+  </section>
+
   <!-- Filter pills -->
   <div class="filters" id="filter-pills"></div>
 
@@ -429,6 +508,19 @@
       return `${Math.floor(h / 24)}d ago`;
     } catch { return ''; }
   }
+  function sourceHost(url) {
+    try {
+      return new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+      return 'Saved source';
+    }
+  }
+  function firestoreDate(value) {
+    if (!value) return '';
+    if (typeof value.toDate === 'function') return value.toDate().toISOString();
+    if (typeof value === 'object' && typeof value.seconds === 'number') return new Date(value.seconds * 1000).toISOString();
+    return value;
+  }
 
   const STORAGE_URL_PREFIX = 'upforward_last_url_';
   const JOB_HINTS    = ['job','jobs','career','careers','position','vacancy','intern','internship','graduate','analyst','associate','stilling','stillinger','ledig','trainee'];
@@ -515,14 +607,37 @@
     return snapshot.docs.map((item) => item.data());
   }
 
+  function renderSources(sources) {
+    const list = document.getElementById('source-list');
+    const count = document.getElementById('source-panel-count');
+    const items = Array.isArray(sources) ? sources.filter((source) => source?.url) : [];
+    document.getElementById('stat-sources').textContent = items.length;
+    count.textContent = `${items.length} link${items.length === 1 ? '' : 's'}`;
+
+    if (!items.length) {
+      list.innerHTML = '<div class="source-empty">Add a careers URL to build your job dashboard.</div>';
+      return;
+    }
+
+    list.innerHTML = items.map((source) => {
+      const url = safeUrl(source.url);
+      const scannedAt = firestoreDate(source.last_scanned_at);
+      return `
+        <div class="source-item">
+          <div class="source-host">${escHtml(sourceHost(source.url))}</div>
+          <div class="source-time">${scannedAt ? escHtml(relativeTime(scannedAt)) : 'saved'}</div>
+          <a class="source-url" href="${escHtml(url)}" target="_blank" rel="noopener noreferrer">${escHtml(source.url)}</a>
+        </div>
+      `;
+    }).join('');
+  }
+
   async function saveSourceUrl(url) {
     const { serverTimestamp, setDoc } = store();
     await setDoc(userDoc('sources', stableId(url)), {
       url,
       last_scanned_at: serverTimestamp()
     }, { merge: true });
-    const sources = await fetchSavedSources();
-    document.getElementById('stat-sources').textContent = sources.length;
   }
 
   async function mergeSavedJobs(incomingJobs) {
@@ -686,12 +801,12 @@
     setStatus('Loading saved jobs…');
     try {
       const [jobs, sources] = await Promise.all([fetchSavedJobs(), fetchSavedSources()]);
-      document.getElementById('stat-sources').textContent = sources.length;
+      renderSources(sources);
       displayJobs(jobs);
       setStatus(jobs.length ? `Loaded ${jobs.length} saved listings from Firebase.` : 'No saved jobs yet. Add a careers URL to start.', jobs.length ? 'ok' : '');
     } catch (error) {
       displayJobs([]);
-      document.getElementById('stat-sources').textContent = '—';
+      renderSources([]);
       setStatus(`Could not load saved jobs from Firebase: ${error.message}`, 'error');
     }
   };
@@ -752,9 +867,15 @@
 
   async function showAndSaveJobs(jobs, url, statusText, okType = '') {
     const jobsFromSource = jobs.map((job) => ({ ...job, source_url: url }));
-    displayJobs(jobsFromSource);
-    document.getElementById('stat-sources').textContent = '1';
-    setStatus(statusText, okType);
+    await saveSourceUrl(url);
+    const [{ jobs: mergedJobs, added }, sources] = await Promise.all([
+      mergeSavedJobs(jobsFromSource),
+      fetchSavedSources()
+    ]);
+    renderSources(sources);
+    displayJobs(mergedJobs);
+    const saveSummary = `${added} new, ${mergedJobs.length} total saved`;
+    setStatus(`${statusText} Saved ${saveSummary}.`, okType);
   }
 
   window.scrapeFromUrl = async function() {
@@ -806,7 +927,7 @@
         ...sources.map((source) => deleteDoc(userDoc('sources', stableId(source.url))))
       ]);
       displayJobs([]);
-      document.getElementById('stat-sources').textContent = '0';
+      renderSources([]);
       setStatus('Cleared your saved dashboard from Firebase.', 'ok');
     } catch (error) {
       setStatus(`Could not clear Firebase data: ${error.message}`, 'error');
