@@ -897,17 +897,28 @@
       try {
         const { text, via } = await fetchPage(url);
         const fallbackJobs = parseFromHtml(text, url).map((job) => ({ ...job, source_url: url }));
-        await showAndSaveJobs(fallbackJobs, url, `Found ${fallbackJobs.length} listings via ${via}.`, fallbackJobs.length ? 'ok' : '');
+        try {
+          await showAndSaveJobs(fallbackJobs, url, `Found ${fallbackJobs.length} listings via ${via}.`, fallbackJobs.length ? 'ok' : '');
+        } catch (saveError) {
+          displayJobs(fallbackJobs);
+          setStatus(`Found ${fallbackJobs.length} listings via ${via}, but could not save to Firebase: ${saveError.message}`, 'error');
+        }
       } catch (fallbackError) {
-        setStatus(`Error: ${fallbackError.message}`, 'error');
+        setStatus(`Could not extract jobs from this URL: ${fallbackError.message}`, 'error');
       }
     };
 
     try {
       const { jobs, meta } = await extractWithLocalApi(url);
-      await showAndSaveJobs(jobs, url, formatPipelineStatus(jobs.length, meta), jobs.length ? 'ok' : '');
+      try {
+        await showAndSaveJobs(jobs, url, formatPipelineStatus(jobs.length, meta), jobs.length ? 'ok' : '');
+      } catch (saveError) {
+        const jobsFromSource = jobs.map((job) => ({ ...job, source_url: url }));
+        displayJobs(jobsFromSource);
+        setStatus(`${formatPipelineStatus(jobs.length, meta)}, but could not save to Firebase: ${saveError.message}`, 'error');
+      }
     } catch (e) {
-      await runFallback(`Server error (${e.message})`);
+      await runFallback(`Extraction API failed (${e.message})`);
     } finally {
       ['btn-fetch','btn-load','btn-export','btn-clear'].forEach(id => document.getElementById(id).disabled = false);
       document.getElementById('url-input').value = '';
